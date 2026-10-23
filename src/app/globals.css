@@ -1,0 +1,123 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-devanagari), var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-heading: var(--font-devanagari), var(--font-inter), system-ui, sans-serif;
+  --color-ayur-primary: #0b3d2e;
+  --color-ayur-primary-dark: #07281e;
+  --color-ayur-primary-light: #155d47;
+  --color-ayur-accent: #c4821a;
+  --color-ayur-accent-hover: #a86c12;
+  --color-ayur-surface: #faf8f5;
+  --color-ayur-card: #ffffff;
+  --color-ayur-border: #e9e3d8;
+}
+
+:root {
+  --background: #faf8f5;
+  --foreground: #1e293b;
+  --primary: #0b3d2e;
+  --primary-light: #155d47;
+  --accent-gold: #c4821a;
+  --accent-soft: #f4fbf7;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    text-rendering: optimizeLegibility;
+  }
+  
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-devanagari), var(--font-inter), system-ui, sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.6;
+  }
+
+  /* Improved line-height for Hindi Devanagari text so matras are never cut off */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-devanagari), var(--font-inter), system-ui, sans-serif;
+    line-height: 1.35;
+    letter-spacing: -0.015em;
+  }
+}
+
+/* Custom premium scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f0eb;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Glassmorphism effects */
+.glass-nav {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(233, 227, 216, 0.8);
+}
+
+/* Organic Warm Gradients */
+.gold-gradient {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+}
+
+.emerald-gradient {
+  background: linear-gradient(135deg, #0b3d2e 0%, #155d47 100%);
+}
+
+.herbal-gradient {
+  background: linear-gradient(180deg, #f4fbf7 0%, #ffffff 100%);
+}
+
+.cream-gradient {
+  background: linear-gradient(180deg, #fbf9f5 0%, #ffffff 100%);
+}
+
+/* Subtly animated badge pulses */
+@keyframes subtle-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.88;
+    transform: scale(1.02);
+  }
+}
+
+.animate-subtle-pulse {
+  animation: subtle-pulse 3s ease-in-out infinite;
+}
+
+/* Clean card elevation */
+.card-hover-lift {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card-hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px -8px rgba(11, 61, 46, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.04);
+}
