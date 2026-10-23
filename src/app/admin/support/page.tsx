@@ -4,32 +4,34 @@ import React, { useState } from "react";
 import { SupportTicket } from "@/types";
 import { MessageSquare, Send, CheckCircle2, Clock } from "lucide-react";
 
+const INITIAL_TICKETS: SupportTicket[] = [
+  {
+    id: "tkt-1",
+    ticketNumber: "TKT-882190",
+    customerName: "अनिल शर्मा",
+    customerPhone: "9876543210",
+    customerEmail: "anil@gmail.com",
+    category: "delivery",
+    message: "मेरा ऑर्डर MAA-882109 कब तक डिलीवर होगा? कूरियर ट्रैकिंग में देरी दिखा रहा है।",
+    status: "open",
+    createdAt: "2026-03-21T07:00:00.000Z",
+  },
+  {
+    id: "tkt-2",
+    ticketNumber: "TKT-882188",
+    customerName: "प्रिया वर्मा",
+    customerPhone: "9414001122",
+    customerEmail: "priya@gmail.com",
+    category: "product_usage",
+    message: "क्या यह क्रीम चेहरे पर पिंपल्स के लिए लगा सकते हैं?",
+    status: "resolved",
+    adminReply: "नमस्ते प्रिया जी, माँ आयुर्वेदिक क्रीम मुख्य रूप से दाद, दरार, खुजली और सोरायसिस के लिए है। चेहरे के पिंपल्स पर इसे सीधे न लगाएं।",
+    createdAt: "2026-03-20T14:00:00.000Z",
+  },
+];
+
 export default function AdminSupportPage() {
-  const [tickets, setTickets] = useState<SupportTicket[]>([
-    {
-      id: "tkt-1",
-      ticketNumber: "TKT-882190",
-      customerName: "अनिल शर्मा",
-      customerPhone: "9876543210",
-      customerEmail: "anil@gmail.com",
-      category: "delivery",
-      message: "मेरा ऑर्डर MAA-882109 कब तक डिलीवर होगा? कूरियर ट्रैकिंग में देरी दिखा रहा है।",
-      status: "open",
-      createdAt: new Date(Date.now() - 3600000 * 3).toISOString(),
-    },
-    {
-      id: "tkt-2",
-      ticketNumber: "TKT-882188",
-      customerName: "प्रिया वर्मा",
-      customerPhone: "9414001122",
-      customerEmail: "priya@gmail.com",
-      category: "product_usage",
-      message: "क्या यह क्रीम चेहरे पर पिंपल्स के लिए लगा सकते हैं?",
-      status: "resolved",
-      adminReply: "नमस्ते प्रिया जी, माँ आयुर्वेदिक क्रीम मुख्य रूप से दाद, दरार, खुजली और सोरायसिस के लिए है। चेहरे के पिंपल्स पर इसे सीधे न लगाएं।",
-      createdAt: new Date(Date.now() - 3600000 * 20).toISOString(),
-    },
-  ]);
+  const [tickets, setTickets] = useState<SupportTicket[]>(INITIAL_TICKETS);
 
   const [activeTicket, setActiveTicket] = useState<SupportTicket | null>(tickets[0]);
   const [replyText, setReplyText] = useState("");

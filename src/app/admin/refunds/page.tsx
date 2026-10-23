@@ -4,31 +4,33 @@ import React, { useState } from "react";
 import { RefundRequest } from "@/types";
 import { RotateCcw, CheckCircle2, XCircle, Clock, AlertCircle } from "lucide-react";
 
+const INITIAL_REFUNDS: RefundRequest[] = [
+  {
+    id: "REF-992101",
+    orderNumber: "MAA-882109",
+    customerName: "मोहन लाल",
+    customerPhone: "9829102938",
+    customerEmail: "mohan@gmail.com",
+    reason: "नियमित उपयोग व परहेज के बाद भी पर्याप्त सुधार नहीं हुआ",
+    details: "मैंने 25 दिन क्रीम लगाई और अचार-नींबू का परहेज रखा लेकिन चकत्ता अभी भी लाल है।",
+    status: "pending",
+    createdAt: "2026-03-20T10:00:00.000Z",
+  },
+  {
+    id: "REF-992102",
+    orderNumber: "MAA-882045",
+    customerName: "कविता शर्मा",
+    customerPhone: "9414987654",
+    customerEmail: "kavita@yahoo.com",
+    reason: "गलत अथवा क्षतिग्रस्त उत्पाद प्राप्त हुआ",
+    details: "डिलीवरी के समय ढक्कन टूटा हुआ था।",
+    status: "approved",
+    createdAt: "2026-03-18T14:30:00.000Z",
+  },
+];
+
 export default function AdminRefundsPage() {
-  const [requests, setRequests] = useState<RefundRequest[]>([
-    {
-      id: "REF-992101",
-      orderNumber: "MAA-882109",
-      customerName: "मोहन लाल",
-      customerPhone: "9829102938",
-      customerEmail: "mohan@gmail.com",
-      reason: "नियमित उपयोग व परहेज के बाद भी पर्याप्त सुधार नहीं हुआ",
-      details: "मैंने 25 दिन क्रीम लगाई और अचार-नींबू का परहेज रखा लेकिन चकत्ता अभी भी लाल है।",
-      status: "pending",
-      createdAt: new Date(Date.now() - 3600000 * 24).toISOString(),
-    },
-    {
-      id: "REF-992102",
-      orderNumber: "MAA-882045",
-      customerName: "कविता शर्मा",
-      customerPhone: "9414987654",
-      customerEmail: "kavita@yahoo.com",
-      reason: "गलत अथवा क्षतिग्रस्त उत्पाद प्राप्त हुआ",
-      details: "डिलीवरी के समय ढक्कन टूटा हुआ था।",
-      status: "approved",
-      createdAt: new Date(Date.now() - 3600000 * 72).toISOString(),
-    },
-  ]);
+  const [requests, setRequests] = useState<RefundRequest[]>(INITIAL_REFUNDS);
 
   const updateStatus = (id: string, newStatus: RefundRequest["status"]) => {
     setRequests(

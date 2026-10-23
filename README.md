@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# माँ आयुर्वेदिक (Maa Ayurveda) - E-Commerce Platform
 
-## Getting Started
+A production-ready Ayurvedic e-commerce platform built with Next.js 16 (Turbopack, App Router), Tailwind CSS v4, TypeScript, Supabase, and Razorpay integration.
 
-First, run the development server:
+---
 
+## 🌿 Features
+
+- **High-Converting Product Experience**: Hero gallery, combo bundle selectors with real-time discounts, and interactive before/after recovery stories (Instagram story format).
+- **Checkout & Payments**: Integrated Cash on Delivery (COD) and Razorpay online payments with instant UPI / cards / net banking support.
+- **Pincode Delivery Estimator**: Live serviceable pincode checker with delivery timelines.
+- **Order Tracking & Refund Portal**: Self-service tracking and 30-day money-back guarantee claim submission.
+- **Comprehensive Admin Suite**: Order processing, dispatch tracking, refund approvals, and customer inquiry management.
+- **Ayurvedic Compliance**: Detailed Ayurvedic lifestyle & dietary precautions (परहेज) guide, herbal ingredient breakdown, and trust certifications.
+
+---
+
+## 🚀 Getting Started
+
+### 1. Prerequisites
+- Node.js 18+ or 20+
+- npm, pnpm, or yarn
+
+### 2. Installation
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/kartikshivhare02/maaaayurveda.git
+cd maaaayurveda
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 3. Environment Variables
+Copy `.env.example` to `.env.local`:
+```bash
+cp .env.example .env.local
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Fill in the credentials:
+- `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase Project URL
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Supabase Anonymous Public Key
+- `SUPABASE_SERVICE_ROLE_KEY`: Supabase Service Role Key (server-only)
+- `NEXT_PUBLIC_RAZORPAY_KEY_ID`: Razorpay Key ID
+- `RAZORPAY_KEY_SECRET`: Razorpay Secret Key
+- `RAZORPAY_WEBHOOK_SECRET`: Razorpay Webhook Secret
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+*(Note: The platform includes built-in mock fallbacks so it functions smoothly even before live API keys are connected.)*
 
-## Learn More
+### 4. Database Setup (Supabase)
+Run the SQL migration script located in [`supabase/schema.sql`](./supabase/schema.sql) inside your Supabase SQL Editor.
 
-To learn more about Next.js, take a look at the following resources:
+### 5. Running Locally
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🛠️ Production Build & Verification
 
-## Deploy on Vercel
+```bash
+# Verify TypeScript & Next.js production compilation
+npm run build
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# Run linting
+npm run lint
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## ☁️ Deployment (Vercel)
+
+1. Push your repository to GitHub (or import directly into [Vercel](https://vercel.com/new)).
+2. Set the Framework Preset to **Next.js**.
+3. Add the environment variables from `.env.example` under **Settings > Environment Variables**.
+4. Click **Deploy**.

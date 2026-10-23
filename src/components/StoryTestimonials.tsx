@@ -320,7 +320,7 @@ export const StoryTestimonials: React.FC = () => {
       </div>
 
       {/* 3. Full Instagram Story Modal Viewer */}
-      {currentStory && (
+      {currentStory && activeStoryIdx !== null && (
         <div 
           className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-2 sm:p-4"
           onClick={closeStory}
@@ -339,7 +339,7 @@ export const StoryTestimonials: React.FC = () => {
                       width:
                         idx === activeStoryIdx
                           ? `${progress}%`
-                          : idx < activeStoryIdx!
+                          : idx < activeStoryIdx
                           ? "100%"
                           : "0%",
                     }}
@@ -452,7 +452,7 @@ export const StoryTestimonials: React.FC = () => {
               />
 
               {/* Nav arrows */}
-              {activeStoryIdx > 0 && (
+              {activeStoryIdx !== null && activeStoryIdx > 0 && (
                 <button
                   type="button"
                   onClick={prevStory}
@@ -461,7 +461,7 @@ export const StoryTestimonials: React.FC = () => {
                   <ChevronLeft className="w-5 h-5" />
                 </button>
               )}
-              {activeStoryIdx < stories.length - 1 && (
+              {activeStoryIdx !== null && activeStoryIdx < stories.length - 1 && (
                 <button
                   type="button"
                   onClick={nextStory}
