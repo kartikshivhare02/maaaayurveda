@@ -92,15 +92,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Check auth session on mount
   useEffect(() => {
-    // Clean up any deprecated bypass flags from localStorage
     try {
       localStorage.removeItem("maa_is_admin");
+      // Clean up legacy mock user if any
+      const saved = localStorage.getItem("maa_user");
+      if (saved && saved.includes("customer@gmail.com")) {
+        localStorage.removeItem("maa_user");
+      }
     } catch {
       // ignore
     }
 
-    // 1. Check Supabase Auth
-    if (supabase && isSupabaseConfigured()) {
+    // Check Supabase Auth session
+    if (supabase) {
       supabase.auth.getSession().then(async ({ data: { session } }) => {
         if (session?.user) {
           const authUser = await syncUserProfile(session.user);
@@ -127,20 +131,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         authListener.subscription.unsubscribe();
       };
     } else {
-      // 2. Check cached local user session (for local dev fallback)
-      try {
-        const saved = localStorage.getItem("maa_user");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed && (parsed.email || parsed.name)) {
-            const isAdmin = isUserAdmin(parsed.email, parsed.role);
-            setUser({ ...parsed, isAdmin, role: isAdmin ? "admin" : (parsed.role || "customer") });
-            setIsLoggedIn(true);
-          }
-        }
-      } catch {
-        // ignore
-      }
       setIsLoading(false);
     }
   }, []);
@@ -161,41 +151,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithGoogle = async () => {
     try {
-      if (supabase && isSupabaseConfigured()) {
+      if (supabase) {
         const redirectTo =
           typeof window !== "undefined"
             ? `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(window.location.pathname)}`
             : undefined;
-        await supabase.auth.signInWithOAuth({
+        const { error } = await supabase.auth.signInWithOAuth({
           provider: "google",
-          options: { redirectTo },
+          options: {
+            redirectTo,
+            queryParams: {
+              access_type: "offline",
+              prompt: "consent",
+            },
+          },
         });
-      } else {
-        // Fallback for local testing without Supabase credentials
-        const demoUser: AuthUser = {
-          id: `usr-${Date.now()}`,
-          name: "सत्यापित ग्राहक",
-          email: "customer@gmail.com",
-          role: "customer",
-          isAdmin: false,
-        };
-        setUser(demoUser);
-        setIsLoggedIn(true);
-        localStorage.setItem("maa_user", JSON.stringify(demoUser));
-
-        if (pendingAction) {
-          pendingAction();
-          setPendingAction(null);
+        if (error) {
+          console.error("Google Auth error:", error);
+          alert(`Google लॉगिन में त्रुटि: ${error.message}\n(कृपया सुनिश्चित करें कि Supabase में Google Provider सक्षम है)`);
         }
-        setIsAuthModalOpen(false);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Google Auth error:", err);
+      alert(`लॉगिन में समस्या आई: ${err.message || err}`);
     }
   };
 
   const logout = async () => {
-    if (supabase && isSupabaseConfigured()) {
+    if (supabase) {
       await supabase.auth.signOut();
     }
     setUser(null);
