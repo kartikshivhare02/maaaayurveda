@@ -194,6 +194,8 @@ export interface StoryTestimonial {
   rating: number; // e.g. 5
   beforeImageUrl: string;
   afterImageUrl: string;
+  videoUrl?: string; // Video clip URL or uploaded data
+  mediaType?: "images" | "video" | "both";
   storyHindi: string;
   isVerified: boolean;
   isActive: boolean;

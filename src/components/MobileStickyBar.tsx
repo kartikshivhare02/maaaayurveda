@@ -43,7 +43,7 @@ export const MobileStickyBar: React.FC = () => {
   }, []);
 
   const handleInstantBuy = () => {
-    const offersEl = document.getElementById("offers");
+    const offersEl = document.getElementById("product-selection") || document.getElementById("offers");
     if (offersEl) {
       offersEl.scrollIntoView({ behavior: "smooth", block: "start" });
       return;

@@ -37,8 +37,10 @@ export const BRAND_INFO = {
   whatsappDisplay: "+91 98765 43210",
   supportEmail: "support@maaayurvedic.in",
   supportHours: "सोमवार से शनिवार (सुबह 10:00 से शाम 7:00 बजे तक)",
-  address: "आयुष प्रमाणित निर्माण इकाई, इंडस्ट्रियल एरिया, राजस्थान, भारत",
-  licenseNo: "AYU-RAJ-2024-8891",
+  address: "Vill Mundala Post Bongred, Teh. Barnagar, Dist Ujjain M.P. 456771",
+  licenseNo: "MP/25D/19/712",
+  marketerName: "M/S MAA MEDICAL STORE",
+  marketerAddress: "CAT SQUARE INDORE MP 452013",
 };
 
 export const MAIN_PRODUCT: Product = {
@@ -141,20 +143,20 @@ export const MAIN_PRODUCT: Product = {
   ],
   storage: "ठंडी व सूखी जगह पर रखें। सीधी धूप और अत्यधिक गर्मी से बचाएं। ढक्कन को हमेशा कसकर बंद रखें।",
   manufacturer: {
-    name: "श्री धनवंतरी हर्बल्स एंड आयुर्वेद लैब",
-    address: "प्लॉट नं. 14-B, रीको इंडस्ट्रियल एरिया, जयपुर - 302013, राजस्थान",
-    licenseNo: "DL-AYU-RAJ-2024-8891",
+    name: "DAISY HERBAL",
+    address: "Vill Mundala Post Bongred, Teh. Barnagar, Dist Ujjain M.P. 456771",
+    licenseNo: "MP/25D/19/712",
   },
   marketer: {
-    name: "माँ आयुर्वेदिक वेलनेस प्राइवेट लिमिटेड",
-    address: "हेड ऑफिस: 402, शांति कॉम्प्लेक्स, एमजी रोड, जयपुर, राजस्थान - 302001",
+    name: "M/S MAA MEDICAL STORE",
+    address: "CAT SQUARE INDORE MP 452013",
     customerCarePhone: "+91 98765 43210",
-    customerCareEmail: "care@maaayurvedic.in",
+    customerCareEmail: "care@maaayurvedic.store",
   },
   batchInfo: {
-    batchNumber: "MAA-2026-OCT",
-    mfgDate: "10/2026",
-    expiryDate: "09/2029",
+    batchNumber: "01",
+    mfgDate: "Aug 2026",
+    expiryDate: "SEPT 2029",
     shelfLife: "निर्माण की तिथि से 3 वर्ष (36 माह)",
   },
 };

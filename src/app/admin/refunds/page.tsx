@@ -1,41 +1,44 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { RefundRequest } from "@/types";
+import { triggerAdminSuccess } from "@/lib/context/AdminToastContext";
 import { RotateCcw, CheckCircle2, XCircle, Clock, AlertCircle } from "lucide-react";
 
-const INITIAL_REFUNDS: RefundRequest[] = [
-  {
-    id: "REF-992101",
-    orderNumber: "MAA-882109",
-    customerName: "मोहन लाल",
-    customerPhone: "9829102938",
-    customerEmail: "mohan@gmail.com",
-    reason: "नियमित उपयोग व परहेज के बाद भी पर्याप्त सुधार नहीं हुआ",
-    details: "मैंने 25 दिन क्रीम लगाई और अचार-नींबू का परहेज रखा लेकिन चकत्ता अभी भी लाल है।",
-    status: "pending",
-    createdAt: "2026-03-20T10:00:00.000Z",
-  },
-  {
-    id: "REF-992102",
-    orderNumber: "MAA-882045",
-    customerName: "कविता शर्मा",
-    customerPhone: "9414987654",
-    customerEmail: "kavita@yahoo.com",
-    reason: "गलत अथवा क्षतिग्रस्त उत्पाद प्राप्त हुआ",
-    details: "डिलीवरी के समय ढक्कन टूटा हुआ था।",
-    status: "approved",
-    createdAt: "2026-03-18T14:30:00.000Z",
-  },
-];
-
 export default function AdminRefundsPage() {
-  const [requests, setRequests] = useState<RefundRequest[]>(INITIAL_REFUNDS);
+  const [requests, setRequests] = useState<RefundRequest[]>([]);
+
+  useEffect(() => {
+    try {
+      const stored: RefundRequest[] = JSON.parse(
+        localStorage.getItem("maa_refund_requests") || "[]"
+      );
+      // Filter out mock data
+      const real = stored.filter(
+        (r) =>
+          r.id !== "REF-992101" &&
+          r.id !== "REF-992102" &&
+          r.customerName !== "मोहन लाल" &&
+          r.customerName !== "कविता शर्मा"
+      );
+      setRequests(real);
+      if (real.length !== stored.length) {
+        localStorage.setItem("maa_refund_requests", JSON.stringify(real));
+      }
+    } catch {
+      setRequests([]);
+    }
+  }, []);
 
   const updateStatus = (id: string, newStatus: RefundRequest["status"]) => {
-    setRequests(
-      requests.map((r) => (r.id === id ? { ...r, status: newStatus } : r))
-    );
+    const updated = requests.map((r) => (r.id === id ? { ...r, status: newStatus } : r));
+    setRequests(updated);
+    try {
+      localStorage.setItem("maa_refund_requests", JSON.stringify(updated));
+    } catch {
+      // ignore
+    }
+    triggerAdminSuccess(`रिफंड दावा ${id} की स्थिति सफलतापूर्वक अपडेट कर दी गई!`);
   };
 
   return (
@@ -51,7 +54,13 @@ export default function AdminRefundsPage() {
 
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200/80 shadow-xs space-y-4">
         {requests.length === 0 ? (
-          <p className="text-center py-8 text-gray-400 text-sm">कोई रिफंड दावा लंबित नहीं है।</p>
+          <div className="text-center py-12 text-gray-400">
+            <RotateCcw className="w-8 h-8 mx-auto text-gray-300 mb-2" />
+            <p className="font-semibold text-gray-700">कोई रिफंड दावा लंबित नहीं है</p>
+            <p className="text-xs text-gray-400 mt-1">
+              जब कोई ग्राहक मनी-बैक गारंटी फॉर्म भरेगा, वह दावा यहाँ समीक्षा के लिए प्रदर्शित होगा।
+            </p>
+          </div>
         ) : (
           <div className="space-y-4">
             {requests.map((req) => (
@@ -64,65 +73,67 @@ export default function AdminRefundsPage() {
                     <span className="font-mono font-bold text-sm text-gray-900">
                       दावा संदर्भ: {req.id}
                     </span>
-                    <span className="text-xs text-gray-500 ml-2">
-                      (ऑर्डर: <strong className="text-gray-800">{req.orderNumber}</strong>)
+                    <span className="text-xs text-gray-500 ml-3">
+                      ऑर्डर: <strong className="text-gray-800">{req.orderNumber}</strong>
                     </span>
                   </div>
-
                   <span
-                    className={`text-xs font-bold px-3 py-1 rounded-full uppercase ${
+                    className={`text-xs font-bold px-2.5 py-1 rounded-full ${
                       req.status === "approved"
-                        ? "bg-blue-100 text-blue-800"
-                        : req.status === "refunded"
                         ? "bg-emerald-100 text-emerald-800"
                         : req.status === "rejected"
                         ? "bg-red-100 text-red-800"
                         : "bg-amber-100 text-amber-800"
                     }`}
                   >
-                    {req.status}
+                    {req.status === "approved"
+                      ? "स्वीकृत (Approved)"
+                      : req.status === "rejected"
+                      ? "अस्वीकृत (Rejected)"
+                      : "लंबित समीक्षा (Pending)"}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                   <div>
-                    <span className="text-gray-500 block">ग्राहक:</span>
-                    <span className="font-bold text-gray-900">{req.customerName}</span>
-                    <span className="block text-gray-600">{req.customerPhone}</span>
+                    <p className="text-gray-400 font-medium">ग्राहक का नाम:</p>
+                    <p className="font-semibold text-gray-800">{req.customerName}</p>
                   </div>
-                  <div className="sm:col-span-2">
-                    <span className="text-gray-500 block">कारण:</span>
-                    <span className="font-bold text-gray-800">{req.reason}</span>
-                    <p className="text-gray-600 mt-1 italic">&ldquo;{req.details}&rdquo;</p>
+                  <div>
+                    <p className="text-gray-400 font-medium">फोन नंबर:</p>
+                    <p className="font-semibold text-gray-800">{req.customerPhone}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400 font-medium">ईमेल:</p>
+                    <p className="font-semibold text-gray-800">{req.customerEmail || "N/A"}</p>
                   </div>
                 </div>
 
-                <div className="pt-2 flex flex-wrap items-center justify-end gap-2 border-t border-gray-200/70">
-                  {req.status === "pending" && (
-                    <>
-                      <button
-                        onClick={() => updateStatus(req.id, "approved")}
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl transition-colors"
-                      >
-                        स्वीकृत करें (Approve)
-                      </button>
-                      <button
-                        onClick={() => updateStatus(req.id, "rejected")}
-                        className="bg-red-100 hover:bg-red-200 text-red-800 font-bold text-xs px-3.5 py-1.5 rounded-xl transition-colors"
-                      >
-                        अस्वीकृत (Reject)
-                      </button>
-                    </>
-                  )}
-                  {req.status === "approved" && (
-                    <button
-                      onClick={() => updateStatus(req.id, "refunded")}
-                      className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-4 py-1.5 rounded-xl transition-colors"
-                    >
-                      धन वापसी पूर्ण (Mark Refunded)
-                    </button>
-                  )}
+                <div className="text-xs bg-white p-3.5 rounded-xl border border-gray-200 space-y-1">
+                  <p className="font-semibold text-gray-700">रिफंड का कारण: {req.reason}</p>
+                  <p className="text-gray-600 leading-relaxed">{req.details}</p>
                 </div>
+
+                {req.status === "pending" && (
+                  <div className="flex items-center justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => updateStatus(req.id, "approved")}
+                      className="inline-flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors shadow-xs"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>स्वीकार करें (Approve Refund)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateStatus(req.id, "rejected")}
+                      className="inline-flex items-center gap-1.5 bg-white hover:bg-red-50 text-red-600 border border-red-200 text-xs font-bold px-4 py-2 rounded-xl transition-colors"
+                    >
+                      <XCircle className="w-4 h-4" />
+                      <span>अस्वीकार करें (Reject)</span>
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

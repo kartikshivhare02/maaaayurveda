@@ -35,7 +35,13 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const savedProduct = localStorage.getItem(PRODUCT_STORAGE_KEY);
       if (savedProduct) {
         const parsed = JSON.parse(savedProduct);
-        setProduct((prev) => ({ ...prev, ...parsed }));
+        setProduct((prev) => ({
+          ...prev,
+          ...parsed,
+          manufacturer: parsed.manufacturer?.name === "DAISY HERBAL" ? parsed.manufacturer : MAIN_PRODUCT.manufacturer,
+          marketer: parsed.marketer?.name === "M/S MAA MEDICAL STORE" ? parsed.marketer : MAIN_PRODUCT.marketer,
+          batchInfo: parsed.batchInfo?.batchNumber === "01" ? parsed.batchInfo : MAIN_PRODUCT.batchInfo,
+        }));
       }
 
       const savedImages = localStorage.getItem(IMAGES_STORAGE_KEY);

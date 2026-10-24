@@ -4,68 +4,77 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Search, Package, Truck, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 import { Order } from "@/types";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 
 export default function TrackOrderPage() {
   const [query, setQuery] = useState("");
   const [searched, setSearched] = useState(false);
   const [order, setOrder] = useState<Order | null>(null);
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     const clean = query.trim().toUpperCase();
     if (!clean) return;
 
     setSearched(true);
+    let foundOrder: Order | null = null;
 
-    // Search in localStorage orders
-    try {
-      const savedOrders: Order[] = JSON.parse(localStorage.getItem("maa_orders") || "[]");
-      const found = savedOrders.find(
-        (o) =>
-          o.orderNumber.toUpperCase() === clean ||
-          o.customerPhone.includes(clean) ||
-          o.id === clean
-      );
+    // 1. Search in Supabase if configured
+    if (supabase && isSupabaseConfigured()) {
+      try {
+        const { data } = await supabase
+          .from("orders")
+          .select("*")
+          .or(`order_number.ilike.${clean},customer_phone.ilike.%${clean}%`)
+          .limit(1)
+          .maybeSingle();
 
-      if (found) {
-        setOrder(found);
-      } else {
-        // Fallback demo order if searching for newly created test order
-        if (clean.startsWith("MAA-")) {
-          setOrder({
-            id: clean,
-            orderNumber: clean,
-            customerName: "ग्राहक",
-            customerPhone: "9876543210",
-            shippingAddress: {
-              fullName: "ग्राहक",
-              phone: "9876543210",
-              flatHouseNo: "मकान नं. 12",
-              streetLocality: "शांति विहार",
-              city: "जयपुर",
-              state: "राजस्थान",
-              pincode: "302001",
-            },
-            items: [],
-            subtotalPaise: 89900,
-            discountPaise: 0,
-            shippingPaise: 0,
-            totalPaise: 89900,
-            paymentMethod: "razorpay_online",
-            paymentStatus: "paid",
-            fulfillmentStatus: "shipped",
-            courierName: "Delhivery Express",
-            trackingNumber: "DLV8871928374",
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          });
-        } else {
-          setOrder(null);
+        if (data) {
+          foundOrder = {
+            id: data.id,
+            orderNumber: data.order_number,
+            customerName: data.customer_name,
+            customerPhone: data.customer_phone,
+            customerEmail: data.customer_email,
+            shippingAddress: data.shipping_address,
+            items: data.items || [],
+            subtotalPaise: data.subtotal_paise || 0,
+            discountPaise: data.discount_paise || 0,
+            shippingPaise: data.shipping_paise || 0,
+            totalPaise: data.total_paise || 0,
+            paymentMethod: data.payment_method || "cod",
+            paymentStatus: data.payment_status || "pending",
+            fulfillmentStatus: data.fulfillment_status || "confirmed",
+            courierName: data.courier_name,
+            trackingNumber: data.tracking_number,
+            createdAt: data.created_at || new Date().toISOString(),
+            updatedAt: data.updated_at || data.created_at || new Date().toISOString(),
+          };
         }
+      } catch {
+        // ignore
       }
-    } catch {
-      setOrder(null);
     }
+
+    // 2. Search in localStorage orders
+    if (!foundOrder) {
+      try {
+        const savedOrders: Order[] = JSON.parse(localStorage.getItem("maa_orders") || "[]");
+        const found = savedOrders.find(
+          (o) =>
+            o.orderNumber.toUpperCase() === clean ||
+            o.customerPhone.includes(clean) ||
+            o.id === clean
+        );
+        if (found) {
+          foundOrder = found;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    setOrder(foundOrder);
   };
 
   return (

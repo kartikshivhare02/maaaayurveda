@@ -200,12 +200,39 @@ export default function CheckoutPage() {
       };
 
       if (paymentMethod === "cod") {
-        // Cash on delivery: Place directly
-        // Save in localStorage for demo/persistence
+        // Cash on delivery: Place directly into Supabase database
+        try {
+          await fetch("/api/orders/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              orderNumber,
+              userId: user?.id,
+              customerName: formData.fullName,
+              customerPhone: cleanPhone,
+              customerEmail: normalizedEmail,
+              shippingAddress: { ...formData, email: normalizedEmail },
+              items,
+              subtotalPaise,
+              discountPaise,
+              couponCode: appliedCoupon?.code,
+              shippingPaise,
+              totalPaise: finalTotalPaise,
+              paymentMethod: "cod",
+              paymentStatus: "pending",
+              fulfillmentStatus: "placed",
+            }),
+          });
+        } catch (dbErr) {
+          console.error("Error creating COD order in database:", dbErr);
+        }
+
+        // Save in localStorage for immediate client reactivity
         const existingOrders = JSON.parse(localStorage.getItem("maa_orders") || "[]");
         existingOrders.unshift({
           ...orderPayload,
           id: orderNumber,
+          orderNumber,
           paymentStatus: "pending",
           fulfillmentStatus: "placed",
           createdAt: new Date().toISOString(),
@@ -258,10 +285,40 @@ export default function CheckoutPage() {
 
             const verifyData = await verifyRes.json();
             if (verifyRes.ok && verifyData.success) {
+              // Ensure order is saved in Supabase
+              try {
+                await fetch("/api/orders/create", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    orderNumber,
+                    userId: user?.id,
+                    customerName: formData.fullName,
+                    customerPhone: cleanPhone,
+                    customerEmail: normalizedEmail,
+                    shippingAddress: { ...formData, email: normalizedEmail },
+                    items,
+                    subtotalPaise,
+                    discountPaise,
+                    couponCode: appliedCoupon?.code,
+                    shippingPaise,
+                    totalPaise: finalTotalPaise,
+                    paymentMethod: "razorpay_online",
+                    paymentStatus: "paid",
+                    fulfillmentStatus: "confirmed",
+                    razorpayOrderId: response.razorpay_order_id,
+                    razorpayPaymentId: response.razorpay_payment_id,
+                  }),
+                });
+              } catch (e) {
+                console.error("Order save in database error:", e);
+              }
+
               const existingOrders = JSON.parse(localStorage.getItem("maa_orders") || "[]");
               existingOrders.unshift({
                 ...orderPayload,
                 id: orderNumber,
+                orderNumber,
                 paymentStatus: "paid",
                 fulfillmentStatus: "confirmed",
                 razorpayOrderId: response.razorpay_order_id,
@@ -289,39 +346,54 @@ export default function CheckoutPage() {
         const rzp = new (window as any).Razorpay(options);
         rzp.open();
       } else {
-        // Smooth Sandbox / Test Flow Simulation
-        // Verify payment on backend with test signature
+        // Sandbox / Test Flow Simulation
         const mockPaymentId = `pay_mock_${Date.now()}`;
         const mockSignature = `sig_mock_${Date.now()}`;
 
-        const verifyRes = await fetch("/api/razorpay/verify-payment", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            razorpay_order_id: razorpayOrder.orderId,
-            razorpay_payment_id: mockPaymentId,
-            razorpay_signature: mockSignature,
-            orderData: orderPayload,
-          }),
-        });
-
-        const verifyData = await verifyRes.json();
-        if (verifyRes.ok) {
-          const existingOrders = JSON.parse(localStorage.getItem("maa_orders") || "[]");
-          existingOrders.unshift({
-            ...orderPayload,
-            id: orderNumber,
-            paymentStatus: "paid",
-            fulfillmentStatus: "confirmed",
-            razorpayOrderId: razorpayOrder.orderId,
-            razorpayPaymentId: mockPaymentId,
-            createdAt: new Date().toISOString(),
+        // Save order directly to Supabase database
+        try {
+          await fetch("/api/orders/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              orderNumber,
+              userId: user?.id,
+              customerName: formData.fullName,
+              customerPhone: cleanPhone,
+              customerEmail: normalizedEmail,
+              shippingAddress: { ...formData, email: normalizedEmail },
+              items,
+              subtotalPaise,
+              discountPaise,
+              couponCode: appliedCoupon?.code,
+              shippingPaise,
+              totalPaise: finalTotalPaise,
+              paymentMethod: "razorpay_online",
+              paymentStatus: "paid",
+              fulfillmentStatus: "confirmed",
+              razorpayOrderId: razorpayOrder.orderId,
+              razorpayPaymentId: mockPaymentId,
+            }),
           });
-          localStorage.setItem("maa_orders", JSON.stringify(existingOrders));
-
-          clearCart();
-          router.push(`/order-success/${orderNumber}?type=prepaid`);
+        } catch (e) {
+          console.error("Order save in database error:", e);
         }
+
+        const existingOrders = JSON.parse(localStorage.getItem("maa_orders") || "[]");
+        existingOrders.unshift({
+          ...orderPayload,
+          id: orderNumber,
+          orderNumber,
+          paymentStatus: "paid",
+          fulfillmentStatus: "confirmed",
+          razorpayOrderId: razorpayOrder.orderId,
+          razorpayPaymentId: mockPaymentId,
+          createdAt: new Date().toISOString(),
+        });
+        localStorage.setItem("maa_orders", JSON.stringify(existingOrders));
+
+        clearCart();
+        router.push(`/order-success/${orderNumber}?type=prepaid`);
       }
     } catch (err: any) {
       console.error(err);

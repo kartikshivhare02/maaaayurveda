@@ -4,152 +4,92 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Order } from "@/types";
 import { MAIN_PRODUCT } from "@/lib/data/mockData";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
-  DollarSign,
-  ShoppingBag,
   TrendingUp,
-  AlertCircle,
-  RotateCcw,
   Package,
-  Eye,
   CheckCircle,
-  Truck,
+  AlertCircle,
   ArrowRight,
+  ShoppingBag,
 } from "lucide-react";
 
 export default function AdminDashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
 
   useEffect(() => {
-    try {
-      const saved: Order[] = JSON.parse(localStorage.getItem("maa_orders") || "[]");
-      if (saved.length > 0) {
-        setOrders(saved);
-      } else {
-        // Seed initial representative orders for realistic demonstration
-        const initialOrders: Order[] = [
-          {
-            id: "ord-1",
-            orderNumber: "MAA-882109",
-            customerName: "राजेश कुमार शर्मा",
-            customerPhone: "9829012345",
-            shippingAddress: {
-              fullName: "राजेश कुमार शर्मा",
-              phone: "9829012345",
-              flatHouseNo: "मकान नं 42",
-              streetLocality: "शास्त्री नगर",
-              city: "जयपुर",
-              state: "राजस्थान",
-              pincode: "302016",
-            },
-            items: [
-              {
-                id: "bundle-2-pack",
-                bundleId: "bundle-2-pack",
-                title: "2 पैक कॉम्बो (स्पेशल बचत)",
-                packCount: 2,
-                unitPricePaise: 89900,
-                totalPricePaise: 89900,
-                mrpPaise: 139800,
-                quantity: 1,
-                image: "/images/product.jpeg",
-              },
-            ],
-            subtotalPaise: 89900,
-            discountPaise: 0,
-            shippingPaise: 0,
-            totalPaise: 89900,
-            paymentMethod: "razorpay_online",
-            paymentStatus: "paid",
-            fulfillmentStatus: "shipped",
-            courierName: "Delhivery",
-            trackingNumber: "DLV9928172635",
-            createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            id: "ord-2",
-            orderNumber: "MAA-882110",
-            customerName: "सुनीता देवी",
-            customerPhone: "9414054321",
-            shippingAddress: {
-              fullName: "सुनीता देवी",
-              phone: "9414054321",
-              flatHouseNo: "फ्लैट 201, साईं कृपा",
-              streetLocality: "एमजी रोड",
-              city: "इंदौर",
-              state: "मध्य प्रदेश",
-              pincode: "452001",
-            },
-            items: [
-              {
-                id: "bundle-1-pack",
-                bundleId: "bundle-1-pack",
-                title: "1 पैक (ट्रायल पैक)",
-                packCount: 1,
-                unitPricePaise: 49900,
-                totalPricePaise: 49900,
-                mrpPaise: 69900,
-                quantity: 1,
-                image: "/images/product.jpeg",
-              },
-            ],
-            subtotalPaise: 49900,
-            discountPaise: 0,
-            shippingPaise: 0,
-            totalPaise: 49900,
-            paymentMethod: "cod",
-            paymentStatus: "pending",
-            fulfillmentStatus: "confirmed",
-            createdAt: new Date(Date.now() - 3600000 * 12).toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            id: "ord-3",
-            orderNumber: "MAA-882111",
-            customerName: "सुरेश पाटिल",
-            customerPhone: "9822099887",
-            shippingAddress: {
-              fullName: "सुरेश पाटिल",
-              phone: "9822099887",
-              flatHouseNo: "प्लॉट 14",
-              streetLocality: "ताराबाई पार्क",
-              city: "कोल्हापुर",
-              state: "महाराष्ट्र",
-              pincode: "416003",
-            },
-            items: [
-              {
-                id: "bundle-3-pack",
-                bundleId: "bundle-3-pack",
-                title: "3 पैक सम्पूर्ण राहत पैक",
-                packCount: 3,
-                unitPricePaise: 124900,
-                totalPricePaise: 124900,
-                mrpPaise: 209700,
-                quantity: 1,
-                image: "/images/product.jpeg",
-              },
-            ],
-            subtotalPaise: 124900,
-            discountPaise: 10000,
-            shippingPaise: 0,
-            totalPaise: 114900,
-            paymentMethod: "razorpay_online",
-            paymentStatus: "paid",
-            fulfillmentStatus: "delivered",
-            courierName: "BlueDart",
-            trackingNumber: "BD771829102",
-            createdAt: new Date(Date.now() - 3600000 * 36).toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        ];
-        setOrders(initialOrders);
-        localStorage.setItem("maa_orders", JSON.stringify(initialOrders));
+    async function loadAdminOrders() {
+      let combinedOrders: Order[] = [];
+
+      // 1. Fetch genuine orders from Supabase if available
+      if (supabase && isSupabaseConfigured()) {
+        try {
+          const { data, error } = await supabase
+            .from("orders")
+            .select("*")
+            .order("created_at", { ascending: false });
+
+          if (!error && data && data.length > 0) {
+            combinedOrders = data.map((d: any) => ({
+              id: d.id,
+              orderNumber: d.order_number,
+              customerName: d.customer_name,
+              customerPhone: d.customer_phone,
+              customerEmail: d.customer_email,
+              shippingAddress: d.shipping_address,
+              items: d.items || [],
+              subtotalPaise: d.subtotal_paise || 0,
+              discountPaise: d.discount_paise || 0,
+              shippingPaise: d.shipping_paise || 0,
+              totalPaise: d.total_paise || 0,
+              paymentMethod: d.payment_method || "cod",
+              paymentStatus: d.payment_status || "pending",
+              fulfillmentStatus: d.fulfillment_status || "confirmed",
+              courierName: d.courier_name,
+              trackingNumber: d.tracking_number,
+              createdAt: d.created_at || new Date().toISOString(),
+              updatedAt: d.updated_at || d.created_at || new Date().toISOString(),
+            }));
+          }
+        } catch {
+          // Supabase not available
+        }
       }
-    } catch {
-      // ignore
+
+      // 2. Fetch local orders and purge any legacy mock orders
+      try {
+        const saved: Order[] = JSON.parse(localStorage.getItem("maa_orders") || "[]");
+        const isMockOrder = (o: Order) =>
+          o.id === "ord-1" ||
+          o.id === "ord-2" ||
+          o.id === "ord-3" ||
+          o.orderNumber === "MAA-882109" ||
+          o.orderNumber === "MAA-882110" ||
+          o.orderNumber === "MAA-882111" ||
+          o.customerName === "राजेश कुमार शर्मा" ||
+          o.customerName === "सुनीता देवी" ||
+          o.customerName === "सुरेश पाटिल";
+
+        const realLocal = saved.filter((o) => !isMockOrder(o));
+        if (realLocal.length !== saved.length) {
+          localStorage.setItem("maa_orders", JSON.stringify(realLocal));
+        }
+
+        const existingNumbers = new Set(combinedOrders.map((o) => o.orderNumber));
+        for (const o of realLocal) {
+          if (!existingNumbers.has(o.orderNumber)) {
+            combinedOrders.push(o);
+            existingNumbers.add(o.orderNumber);
+          }
+        }
+      } catch {
+        // ignore
+      }
+
+      setOrders(combinedOrders);
     }
+
+    loadAdminOrders();
   }, []);
 
   const totalRevenuePaise = orders
@@ -168,7 +108,7 @@ export default function AdminDashboardPage() {
             डैशबोर्ड अवलोकन (Dashboard Overview)
           </h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">
-            माँ आयुर्वेदिक क्रीम — ई-कॉमर्स बिक्री, स्टॉक एवं ऑर्डर विश्लेषण
+            माँ आयुर्वेदिक क्रीम — ई-कॉमर्स बिक्री, स्टॉक एवं वास्तविक ऑर्डर
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -193,7 +133,7 @@ export default function AdminDashboardPage() {
         <div className="bg-white rounded-3xl p-6 border border-gray-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between text-xs font-bold text-gray-500 uppercase">
             <span>सत्यापित कुल आय</span>
-            <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
               ₹
             </div>
           </div>
@@ -251,9 +191,9 @@ export default function AdminDashboardPage() {
       <div className="bg-white rounded-3xl border border-gray-200/80 shadow-xs overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">हाल के ऑर्डर (Recent Orders)</h2>
+            <h2 className="text-lg font-bold text-gray-900">हाल के वास्तविक ऑर्डर (Recent Orders)</h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              ग्राहकों द्वारा हाल ही में दर्ज किए गए ऑर्डर की सूची
+              ग्राहकों द्वारा स्टोरफ्रंट पर दर्ज किए गए वास्तविक ऑर्डर की सूची
             </p>
           </div>
           <Link
@@ -279,47 +219,59 @@ export default function AdminDashboardPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {orders.slice(0, 5).map((ord) => (
-                <tr key={ord.orderNumber} className="hover:bg-gray-50/60 transition-colors">
-                  <td className="py-3.5 px-4 font-mono font-bold text-gray-900">
-                    {ord.orderNumber}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <div className="font-semibold text-gray-900">{ord.customerName}</div>
-                    <div className="text-[11px] text-gray-400">{ord.customerPhone}</div>
-                  </td>
-                  <td className="py-3.5 px-4 text-gray-600">
-                    {ord.shippingAddress?.city}, {ord.shippingAddress?.state?.split(" ")[0]}
-                  </td>
-                  <td className="py-3.5 px-4 font-bold text-gray-900">
-                    ₹{ord.totalPaise / 100}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <span
-                      className={`inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
-                        ord.paymentStatus === "paid"
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-amber-100 text-amber-800"
-                      }`}
-                    >
-                      {ord.paymentStatus === "paid" ? "Paid" : "Pending COD"}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <span className="inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800">
-                      {ord.fulfillmentStatus}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4 text-right">
-                    <Link
-                      href="/admin/orders"
-                      className="text-xs font-bold text-emerald-700 hover:text-emerald-900"
-                    >
-                      प्रबंधित करें
-                    </Link>
+              {orders.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-gray-400">
+                    <ShoppingBag className="w-8 h-8 mx-auto text-gray-300 mb-2" />
+                    <p className="font-semibold text-gray-700">अभी तक कोई ऑर्डर दर्ज नहीं हुआ है</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      जब कोई ग्राहक स्टोर से ऑर्डर करेगा, वह यहाँ सीधे दिखाई देगा।
+                    </p>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                orders.slice(0, 5).map((ord) => (
+                  <tr key={ord.orderNumber} className="hover:bg-gray-50/60 transition-colors">
+                    <td className="py-3.5 px-4 font-mono font-bold text-gray-900">
+                      {ord.orderNumber}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="font-semibold text-gray-900">{ord.customerName}</div>
+                      <div className="text-[11px] text-gray-400">{ord.customerPhone}</div>
+                    </td>
+                    <td className="py-3.5 px-4 text-gray-600">
+                      {ord.shippingAddress?.city}, {ord.shippingAddress?.state?.split(" ")[0]}
+                    </td>
+                    <td className="py-3.5 px-4 font-bold text-gray-900">
+                      ₹{ord.totalPaise / 100}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span
+                        className={`inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                          ord.paymentStatus === "paid"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-amber-100 text-amber-800"
+                        }`}
+                      >
+                        {ord.paymentStatus === "paid" ? "Paid" : "Pending COD"}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className="inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                        {ord.fulfillmentStatus}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <Link
+                        href="/admin/orders"
+                        className="text-xs font-bold text-emerald-700 hover:text-emerald-900"
+                      >
+                        प्रबंधित करें
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

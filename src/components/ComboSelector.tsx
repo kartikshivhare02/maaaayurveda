@@ -60,7 +60,7 @@ export const ComboSelector: React.FC = () => {
 
   return (
     <div
-      id="offers"
+      id="combo-packs"
       className="bg-white rounded-3xl p-4 sm:p-8 shadow-sm border border-[#e9e3d8] relative scroll-mt-20 sm:scroll-mt-24 transition-all"
     >
       {/* Top Header */}

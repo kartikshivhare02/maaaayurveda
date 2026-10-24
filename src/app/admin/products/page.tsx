@@ -21,6 +21,7 @@ import {
   Upload,
   Info,
 } from "lucide-react";
+import { triggerAdminSuccess } from "@/lib/context/AdminToastContext";
 
 export default function AdminProductsPage() {
   const {
@@ -65,12 +66,13 @@ export default function AdminProductsPage() {
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
+    triggerAdminSuccess(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const handleProductSubmit = (e: React.FormEvent) => {
+  const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateProduct({
+    const productPayload = {
       name: formData.name,
       hindiTitle: formData.hindiTitle,
       subtitle: formData.subtitle,
@@ -82,8 +84,22 @@ export default function AdminProductsPage() {
       stockCount: Number(formData.stockCount),
       inStock: formData.inStock,
       ingredients: formData.ingredients,
-    });
-    showToast("उत्पाद विवरण, मूल्य एवं स्टॉक सफलतापूर्वक अपडेट कर दिया गया!");
+    };
+
+    updateProduct(productPayload);
+
+    // Save directly to Supabase database
+    try {
+      await fetch("/api/admin/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(productPayload),
+      });
+    } catch (e) {
+      console.error("Failed to update product in Supabase:", e);
+    }
+
+    showToast("उत्पाद विवरण, मूल्य एवं स्टॉक डेटाबेस में सफलतापूर्वक अपडेट हो गए!");
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

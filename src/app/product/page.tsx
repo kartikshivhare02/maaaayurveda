@@ -6,7 +6,6 @@ import { useProductStore } from "@/lib/store/productStore";
 import { BRAND_INFO } from "@/lib/data/mockData";
 import { HeroProductGallery } from "@/components/HeroProductGallery";
 import { ComboSelector } from "@/components/ComboSelector";
-import { PincodeChecker } from "@/components/PincodeChecker";
 import { DietaryPrecautions } from "@/components/DietaryPrecautions";
 import {
   ShieldCheck,
@@ -40,7 +39,6 @@ export default function ProductDetailPage() {
           {/* Gallery with Sliding Primary & Secondary Selection */}
           <div className="lg:col-span-5 space-y-6">
             <HeroProductGallery />
-            <PincodeChecker />
           </div>
 
           {/* Product Overview & Selector */}

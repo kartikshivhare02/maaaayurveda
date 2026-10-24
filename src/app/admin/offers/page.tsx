@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { BUNDLE_OFFERS, COUPONS } from "@/lib/data/mockData";
 import { BundleOffer, Coupon } from "@/types";
 import { Tag, Sparkles, Plus, Trash2, Edit, CheckCircle2, Save } from "lucide-react";
+import { triggerAdminSuccess } from "@/lib/context/AdminToastContext";
 
 export default function AdminOffersPage() {
   const [bundles, setBundles] = useState<BundleOffer[]>(BUNDLE_OFFERS);
@@ -17,21 +18,54 @@ export default function AdminOffersPage() {
   const [newDesc, setNewDesc] = useState("");
 
   useEffect(() => {
-    try {
-      const savedBundles = localStorage.getItem("maa_bundle_offers");
-      if (savedBundles) {
-        const parsed = JSON.parse(savedBundles);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setBundles(parsed);
+    async function loadBundles() {
+      // 1. Fetch from Supabase
+      try {
+        const res = await fetch("/api/admin/bundles");
+        const json = await res.json();
+        if (json.success && Array.isArray(json.bundles) && json.bundles.length > 0) {
+          const mapped: BundleOffer[] = json.bundles.map((b: any) => ({
+            id: b.id,
+            packCount: b.pack_count,
+            title: b.title,
+            subtitle: b.subtitle,
+            hindiTag: b.hindi_tag,
+            mrpPaise: Number(b.mrp_paise),
+            pricePaise: Number(b.price_paise),
+            savingsPaise: Number(b.savings_paise),
+            savingsPercentage: Number(b.savings_percentage),
+            freeDelivery: b.free_delivery,
+            isPopular: b.is_popular,
+            isBestValue: b.is_best_value,
+            active: b.active,
+          }));
+          setBundles(mapped);
+          return;
         }
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
+
+      // 2. Fallback to localStorage
+      try {
+        const savedBundles = localStorage.getItem("maa_bundle_offers");
+        if (savedBundles) {
+          const parsed = JSON.parse(savedBundles);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setBundles(parsed);
+          }
+        }
+      } catch {
+        // ignore
+      }
     }
+
+    loadBundles();
   }, []);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
+    triggerAdminSuccess(msg);
     setTimeout(() => setToastMsg(null), 3000);
   };
 
@@ -66,11 +100,19 @@ export default function AdminOffersPage() {
     );
   };
 
-  const handleSaveBundles = () => {
+  const handleSaveBundles = async () => {
     try {
       localStorage.setItem("maa_bundle_offers", JSON.stringify(bundles));
       window.dispatchEvent(new Event("maa_bundles_updated"));
-      showToast("कॉम्बो पैक विवरण एवं मूल्य सफलतापूर्वक अपडेट कर दिए गए!");
+
+      // Save to Supabase database
+      await fetch("/api/admin/bundles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bundles }),
+      });
+
+      showToast("कॉम्बो पैक विवरण एवं मूल्य डेटाबेस में सफलतापूर्वक अपडेट हो गए!");
     } catch {
       showToast("सहेजने में त्रुटि हुई।");
     }

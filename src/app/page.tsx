@@ -2,7 +2,6 @@ import React from "react";
 import Link from "next/link";
 import { BRAND_INFO, MAIN_PRODUCT } from "@/lib/data/mockData";
 import { ComboSelector } from "@/components/ComboSelector";
-import { PincodeChecker } from "@/components/PincodeChecker";
 import { DietaryPrecautions } from "@/components/DietaryPrecautions";
 import { EducationalSection } from "@/components/EducationalSection";
 import { MoneyBackGuarantee } from "@/components/MoneyBackGuarantee";
@@ -349,7 +348,7 @@ export default function HomePage() {
       {/* ═══════════════════════════════════════════════
           6. PURCHASE / COMBO SELECTOR
       ═══════════════════════════════════════════════ */}
-      <section id="offers" className="section-cream py-16 sm:py-20 relative">
+      <section id="offers" className="section-cream py-16 sm:py-20 relative scroll-mt-20">
         <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-amber-200 to-transparent" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -365,10 +364,14 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
-            {/* Left: Product Image + Pincode + Guarantee */}
-            <div className="lg:col-span-5 space-y-5">
+            {/* Right on Desktop / First on Mobile: Direct Combo Selector */}
+            <div id="product-selection" className="lg:col-span-7 order-1 lg:order-2 scroll-mt-24">
+              <ComboSelector />
+            </div>
+
+            {/* Left on Desktop / Second on Mobile: Product Image & Guarantee */}
+            <div className="lg:col-span-5 order-2 lg:order-1 space-y-5">
               <HeroProductGallery />
-              <PincodeChecker />
 
               {/* Guarantee Banner */}
               <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200/70 shadow-xs">
@@ -382,11 +385,6 @@ export default function HomePage() {
                   </p>
                 </div>
               </div>
-            </div>
-
-            {/* Right: Combo Selector */}
-            <div className="lg:col-span-7">
-              <ComboSelector />
             </div>
           </div>
         </div>

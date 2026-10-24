@@ -20,6 +20,8 @@ import {
   Sparkles,
 } from "lucide-react";
 
+import { AdminToastProvider } from "@/lib/context/AdminToastContext";
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -36,7 +38,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   ];
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row">
+    <AdminToastProvider>
+      <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row">
       {/* Mobile Top Bar */}
       <div className="md:hidden bg-slate-900 text-white p-4 flex items-center justify-between border-b border-slate-800">
         <div className="flex items-center gap-2">
@@ -118,6 +121,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <main className="flex-1 p-4 sm:p-8 overflow-y-auto">
         <div className="max-w-7xl mx-auto">{children}</div>
       </main>
-    </div>
+      </div>
+    </AdminToastProvider>
   );
 }
