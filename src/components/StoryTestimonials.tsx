@@ -250,10 +250,10 @@ export const StoryTestimonials: React.FC = () => {
               {/* Story Label */}
               <div className="text-center max-w-[85px] sm:max-w-[105px]">
                 <span className="text-xs font-bold text-gray-900 truncate block">
-                  {story.customerName.split(" ")[0]}
+                  {(story.customerName || "ग्राहक").split(" ")[0]}
                 </span>
                 <span className="text-[10px] text-emerald-800 font-semibold truncate block bg-emerald-50 px-1 rounded mt-0.5">
-                  {story.concern.split(" ")[0]}
+                  {(story.concern || "समीक्षा").split(" ")[0]}
                 </span>
               </div>
             </button>
@@ -326,8 +326,8 @@ export const StoryTestimonials: React.FC = () => {
                 </p>
 
                 <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-[11px]">
-                  <span className="font-bold text-gray-900">{story.customerName}</span>
-                  <span className="text-gray-400">{story.city.split(",")[0]}</span>
+                  <span className="font-bold text-gray-900">{story.customerName || "ग्राहक"}</span>
+                  <span className="text-gray-400">{(story.city || "").split(",")[0]}</span>
                 </div>
               </div>
             </div>

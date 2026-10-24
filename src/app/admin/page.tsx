@@ -286,7 +286,8 @@ export default function AdminDashboardPage() {
                       <div className="text-[11px] text-gray-400">{ord.customerPhone}</div>
                     </td>
                     <td className="py-3.5 px-4 text-gray-600">
-                      {ord.shippingAddress?.city}, {ord.shippingAddress?.state?.split(" ")[0]}
+                      {ord.shippingAddress?.city || "—"}
+                      {ord.shippingAddress?.state ? `, ${(ord.shippingAddress.state || "").split(" ")[0]}` : ""}
                     </td>
                     <td className="py-3.5 px-4 font-bold text-gray-900">
                       ₹{ord.totalPaise / 100}

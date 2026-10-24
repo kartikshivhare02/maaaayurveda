@@ -16,7 +16,22 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, stories: data });
+  const stories = (data || []).map((s: any) => ({
+    id: s.id,
+    customerName: s.customer_name || s.customerName || "",
+    city: s.city || "",
+    concern: s.concern || "",
+    duration: s.duration || "",
+    rating: s.rating || 5,
+    beforeImageUrl: s.before_image_url || s.beforeImageUrl || "/images/product.jpeg",
+    afterImageUrl: s.after_image_url || s.afterImageUrl || "/images/product.jpeg",
+    storyHindi: s.story_hindi || s.storyHindi || "",
+    isVerified: s.is_verified ?? s.isVerified ?? true,
+    isActive: s.is_active ?? s.isActive ?? true,
+    createdAt: s.created_at || s.createdAt || new Date().toISOString(),
+  }));
+
+  return NextResponse.json({ success: true, stories });
 }
 
 export async function POST(request: Request) {
