@@ -43,15 +43,12 @@ export const MobileStickyBar: React.FC = () => {
   }, []);
 
   const handleInstantBuy = () => {
-    if (!isLoggedIn) {
-      openAuthModal(() => {
-        addItem(selectedBundle, 1);
-        router.push("/checkout");
-      });
+    const offersEl = document.getElementById("offers");
+    if (offersEl) {
+      offersEl.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
-    addItem(selectedBundle, 1);
-    router.push("/checkout");
+    router.push("/#offers");
   };
 
   const handleAddToCart = () => {

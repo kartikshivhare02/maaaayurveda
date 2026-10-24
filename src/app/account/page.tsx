@@ -2,64 +2,42 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
-import { BRAND_INFO } from "@/lib/data/mockData";
+import { useAuth } from "@/lib/context/AuthContext";
 import { Order } from "@/types";
 import {
   User,
   Package,
   LogOut,
-  MapPin,
   Lock,
   ArrowRight,
-  ExternalLink,
-  Phone,
   ShieldCheck,
-  Clock,
+  LayoutDashboard,
+  ShoppingBag,
+  ExternalLink,
+  AlertCircle,
 } from "lucide-react";
 
 export default function AccountPage() {
-  const [user, setUser] = useState<any>(null);
+  const { user, isLoggedIn, isAdmin, loginWithGoogle, logout } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check if Supabase session exists
-    if (supabase) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session?.user) {
-          setUser(session.user);
-          setIsLoggedIn(true);
-        }
-      });
-
-      const { data: authListener } = supabase.auth.onAuthStateChange(
-        (_event, session) => {
-          if (session?.user) {
-            setUser(session.user);
-            setIsLoggedIn(true);
-          } else {
-            setUser(null);
-            setIsLoggedIn(false);
-          }
-        }
-      );
-
-      return () => {
-        authListener.subscription.unsubscribe();
-      };
+    // Check URL query parameters for security notifications
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("error") === "unauthorized_admin") {
+        setAuthNotice("यह खाता एडमिनिस्ट्रेटर के रूप में अधिकृत नहीं है। एडमिन डैशबोर्ड केवल अधिकृत एडमिन ईमेल के लिए उपलब्ध है।");
+      } else if (params.get("authRequired") === "admin") {
+        setAuthNotice("एडमिन पोर्टल का उपयोग करने के लिए कृपया अपने अधिकृत एडमिन Google खाते से लॉगिन करें।");
+      }
     }
 
     // Load local orders from localStorage
     try {
       const savedOrders: Order[] = JSON.parse(localStorage.getItem("maa_orders") || "[]");
       setOrders(savedOrders);
-      const savedUser = localStorage.getItem("maa_user");
-      if (savedUser) {
-        setUser(JSON.parse(savedUser));
-        setIsLoggedIn(true);
-      }
     } catch {
       // ignore
     }
@@ -68,54 +46,41 @@ export default function AccountPage() {
   const handleGoogleLogin = async () => {
     setAuthLoading(true);
     try {
-      if (supabase && isSupabaseConfigured()) {
-        await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: {
-            redirectTo: `${window.location.origin}/account`,
-          },
-        });
-      } else {
-        // Fallback demo login when Supabase credentials are pending in .env
-        const demoUser = {
-          name: "प्रमाणित गूगल ग्राहक (Google User)",
-          email: "customer@gmail.com",
-          picture: null,
-        };
-        setUser(demoUser);
-        setIsLoggedIn(true);
-        localStorage.setItem("maa_user", JSON.stringify(demoUser));
-      }
+      await loginWithGoogle();
     } finally {
       setAuthLoading(false);
     }
   };
 
-  const handleLogout = async () => {
-    if (supabase) {
-      await supabase.auth.signOut();
-    }
-    setUser(null);
-    setIsLoggedIn(false);
-    localStorage.removeItem("maa_user");
-  };
-
   return (
-    <div className="bg-[#fcfcfc] py-12">
+    <div className="bg-[#fcfcfc] py-10 sm:py-14 min-h-[75vh]">
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
-        <div className="mb-8 flex items-center justify-between">
+
+        {/* Security Notification Banner if redirected */}
+        {authNotice && (
+          <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs sm:text-sm flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">सुरक्षा सूचना (Security Notice)</p>
+              <p className="mt-0.5 text-amber-800">{authNotice}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Top Header */}
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-gray-900">
+            <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
               ग्राहक खाता एवं ऑर्डर (Account & Orders)
             </h1>
             <p className="text-xs sm:text-sm text-gray-500 mt-1">
-              अपने ऑर्डर का इतिहास देखें एवं प्रोफाइल प्रबंधित करें।
+              अपने ऑर्डर का इतिहास देखें, स्थिति ट्रैक करें एवं खाता प्रबंधित करें।
             </p>
           </div>
           {isLoggedIn && (
             <button
-              onClick={handleLogout}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-2 rounded-xl transition-colors"
+              onClick={() => logout()}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3.5 py-2 rounded-xl transition-colors shrink-0 shadow-2xs cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
               लॉगआउट
@@ -125,48 +90,114 @@ export default function AccountPage() {
 
         {isLoggedIn ? (
           <div className="space-y-6">
+
+            {/* Special Admin Dashboard Banner (ONLY Visible When Authenticated User is Admin) */}
+            {isAdmin && (
+              <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-white border-2 border-amber-400/60 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center font-black shadow-md shrink-0">
+                    <LayoutDashboard className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-black text-gray-900 text-base sm:text-lg">
+                        एडमिनिस्ट्रेटर डैशबोर्ड (Admin Portal)
+                      </h3>
+                      <span className="text-[10px] font-black bg-amber-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        प्रबंधक
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-0.5">
+                      उत्पाद सूची, कॉम्बो ऑफर, ग्राहक ऑर्डर, डिलीवरी स्थिति व रिफंड प्रबंधित करें।
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  href="/admin"
+                  id="account-admin-portal-btn"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-bold text-xs sm:text-sm px-5 py-3 rounded-2xl shadow-md transition-all shrink-0"
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  <span>एडमिन डैशबोर्ड खोलें</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            )}
+
             {/* User Profile Card */}
-            <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-xs flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xl">
-                {user?.name?.[0] || user?.email?.[0] || "ग"}
+            <div className="bg-white rounded-3xl p-5 sm:p-6 border border-gray-100 shadow-xs flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xl uppercase shrink-0">
+                  {user?.name ? user.name.charAt(0) : <User className="w-6 h-6" />}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-gray-900 text-lg truncate">
+                      {user?.name || "सत्यापित ग्राहक"}
+                    </h3>
+                    {isAdmin ? (
+                      <span className="text-[10px] font-black text-amber-900 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200 shrink-0">
+                        एडमिनिस्ट्रेटर
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0">
+                        सत्यापित ग्राहक
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 font-mono mt-0.5 truncate">
+                    {user?.email || "पंजीकृत खाता"}
+                  </p>
+                </div>
               </div>
-              <div className="flex-1">
-                <h3 className="font-bold text-gray-900 text-lg">
-                  {user?.name || user?.user_metadata?.full_name || "सत्यापित ग्राहक"}
-                </h3>
-                <p className="text-xs text-gray-500 font-mono">
-                  {user?.email || user?.phone || "पंजीकृत खाता"}
-                </p>
+
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/track-order"
+                  className="text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-3.5 py-2 rounded-xl border border-emerald-200 transition-colors"
+                >
+                  लाइव ऑर्डर ट्रैक करें
+                </Link>
               </div>
-              <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-                सक्रिय सत्र (Active)
-              </span>
             </div>
 
             {/* Orders Section */}
             <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-xs">
-              <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Package className="w-5 h-5 text-emerald-700" />
-                आपके हाल के ऑर्डर (Order History)
-              </h2>
+              <div className="flex items-center justify-between mb-5 pb-3 border-b border-gray-100">
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <Package className="w-5 h-5 text-emerald-700" />
+                  <span>आपके हाल के ऑर्डर (Order History)</span>
+                </h2>
+                <span className="text-xs text-gray-400 font-medium">
+                  कुल ऑर्डर: {orders.length}
+                </span>
+              </div>
 
               {orders.length === 0 ? (
-                <div className="text-center py-10 space-y-3">
-                  <Package className="w-10 h-10 text-gray-300 mx-auto" />
-                  <p className="text-sm text-gray-500">अभी तक कोई ऑर्डर दर्ज नहीं है।</p>
-                  <Link
-                    href="/#offers"
-                    className="inline-flex items-center gap-2 text-xs font-bold text-emerald-700 hover:underline"
-                  >
-                    विशेष कॉम्बो ऑफर देखें →
-                  </Link>
+                <div className="text-center py-12 space-y-3">
+                  <div className="w-14 h-14 rounded-full bg-stone-100 text-stone-400 flex items-center justify-center mx-auto">
+                    <ShoppingBag className="w-7 h-7" />
+                  </div>
+                  <h3 className="text-base font-bold text-gray-800">अभी तक कोई ऑर्डर नहीं है</h3>
+                  <p className="text-xs sm:text-sm text-gray-500 max-w-sm mx-auto">
+                    माँ आयुर्वेदिक क्रीम के विशेष कॉम्बो ऑफर देखें और दाद, खाज, खुजली से प्राकृतिक राहत पाएं।
+                  </p>
+                  <div className="pt-2">
+                    <Link
+                      href="/#offers"
+                      className="inline-flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-xs transition-all"
+                    >
+                      <span>कॉम्बो ऑफर देखें</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {orders.map((ord) => (
                     <div
                       key={ord.orderNumber}
-                      className="p-4 sm:p-5 rounded-2xl border border-gray-200/80 bg-gray-50/50 space-y-3"
+                      className="p-4 sm:p-5 rounded-2xl border border-gray-200/80 bg-gray-50/50 space-y-3 hover:border-emerald-200 transition-colors"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-gray-200/60">
                         <div>
@@ -183,22 +214,23 @@ export default function AccountPage() {
                                 : "bg-amber-100 text-amber-800"
                             }`}
                           >
-                            {ord.paymentStatus === "paid" ? "Paid" : "COD"}
+                            {ord.paymentStatus === "paid" ? "ऑनलाइन भुगतान" : "कैश ऑन डिलीवरी"}
                           </span>
-                          <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                          <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 capitalize">
                             {ord.fulfillmentStatus}
                           </span>
                         </div>
                       </div>
 
                       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600">
-                        <span>कुल राशि: ₹{ord.totalPaise / 100}</span>
+                        <span className="font-bold text-gray-900">कुल राशि: ₹{ord.totalPaise / 100}</span>
                         <span>डिलीवरी: {ord.shippingAddress?.city}, {ord.shippingAddress?.state}</span>
                         <Link
                           href={`/order-success/${ord.orderNumber}`}
-                          className="font-bold text-emerald-700 hover:underline"
+                          className="font-bold text-emerald-700 hover:underline flex items-center gap-1"
                         >
-                          विवरण व इनवॉइस देखें →
+                          <span>विवरण व इनवॉइस</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
                         </Link>
                       </div>
                     </div>
@@ -208,7 +240,7 @@ export default function AccountPage() {
             </div>
           </div>
         ) : (
-          /* Login Card - Google OAuth Only */
+          /* Login Card - Clean Google OAuth Only (No guest checkout, no public admin buttons) */
           <div className="bg-white rounded-3xl p-6 sm:p-10 border border-gray-100 shadow-sm max-w-lg mx-auto space-y-6">
             <div className="text-center space-y-2">
               <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-2xs">
@@ -228,7 +260,7 @@ export default function AccountPage() {
                 type="button"
                 onClick={handleGoogleLogin}
                 disabled={authLoading}
-                className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-800 border-2 border-gray-200 hover:border-gray-300 font-bold py-3.5 px-4 rounded-2xl shadow-xs transition-all text-sm group"
+                className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-800 border-2 border-gray-200 hover:border-gray-300 font-bold py-3.5 px-4 rounded-2xl shadow-xs transition-all text-sm group cursor-pointer"
               >
                 <svg className="w-5 h-5 shrink-0 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
                   <path

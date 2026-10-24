@@ -7,7 +7,7 @@ import { CartProvider } from "@/lib/store/cartStore";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { FloatingSupport } from "@/components/FloatingSupport";
-import { MobileStickyBar } from "@/components/MobileStickyBar";
+import { FloatingCart } from "@/components/FloatingCart";
 import { AuthModal } from "@/components/AuthModal";
 
 const devanagari = Noto_Sans_Devanagari({
@@ -82,10 +82,10 @@ export default function RootLayout({
           <ProductProvider>
             <CartProvider>
               <Header />
-              <main className="flex-1 w-full max-w-full overflow-x-hidden pb-28 sm:pb-0">{children}</main>
+              <main className="flex-1 w-full max-w-full overflow-x-hidden">{children}</main>
               <Footer />
               <FloatingSupport />
-              <MobileStickyBar />
+              <FloatingCart />
               <AuthModal />
             </CartProvider>
           </ProductProvider>

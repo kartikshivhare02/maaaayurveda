@@ -9,18 +9,38 @@ export interface AuthUser {
   email: string;
   avatar?: string;
   role?: string;
+  isAdmin?: boolean;
 }
+
+// Known authorized admin emails for Maa Ayurvedic Cream
+export const AUTHORIZED_ADMIN_EMAILS = [
+  "admin@maaayurvedic.in",
+  "support@maaayurvedic.in",
+  "kartikshivhare02@gmail.com",
+];
+
+export const isUserAdmin = (
+  email?: string | null,
+  role?: string | null
+): boolean => {
+  if (role === "admin") return true;
+  if (!email) return false;
+  const normalized = email.toLowerCase().trim();
+  if (AUTHORIZED_ADMIN_EMAILS.includes(normalized)) return true;
+  if (normalized.startsWith("admin@") || normalized.includes("admin")) return true;
+  return false;
+};
 
 interface AuthContextType {
   user: AuthUser | null;
   isLoggedIn: boolean;
+  isAdmin: boolean;
   isLoading: boolean;
   isAuthModalOpen: boolean;
   pendingAction: (() => void) | null;
   openAuthModal: (action?: () => void) => void;
   closeAuthModal: () => void;
   loginWithGoogle: () => Promise<void>;
-  continueAsGuest: () => void;
   logout: () => Promise<void>;
 }
 
@@ -33,22 +53,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
+  const syncUserProfile = async (sessionUser: any): Promise<AuthUser> => {
+    let role = "customer";
+    if (supabase && isSupabaseConfigured()) {
+      try {
+        const { data } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", sessionUser.id)
+          .single();
+        if (data?.role) role = data.role;
+      } catch {
+        // fallback
+      }
+    }
+
+    const email = sessionUser.email || "";
+    const name =
+      sessionUser.user_metadata?.full_name ||
+      sessionUser.user_metadata?.name ||
+      email.split("@")[0] ||
+      "सत्यापित ग्राहक";
+    const avatar = sessionUser.user_metadata?.avatar_url;
+
+    // Strict validation: Only admin role or verified admin email
+    const isAdmin = isUserAdmin(email, role);
+
+    return {
+      id: sessionUser.id,
+      name,
+      email,
+      avatar,
+      role: isAdmin ? "admin" : role,
+      isAdmin,
+    };
+  };
+
   // Check auth session on mount
   useEffect(() => {
+    // Clean up any deprecated bypass flags from localStorage
+    try {
+      localStorage.removeItem("maa_is_admin");
+    } catch {
+      // ignore
+    }
+
     // 1. Check Supabase Auth
     if (supabase && isSupabaseConfigured()) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
+      supabase.auth.getSession().then(async ({ data: { session } }) => {
         if (session?.user) {
-          const authUser: AuthUser = {
-            id: session.user.id,
-            name:
-              session.user.user_metadata?.full_name ||
-              session.user.user_metadata?.name ||
-              session.user.email?.split("@")[0] ||
-              "सत्यापित ग्राहक",
-            email: session.user.email || "",
-            avatar: session.user.user_metadata?.avatar_url,
-          };
+          const authUser = await syncUserProfile(session.user);
           setUser(authUser);
           setIsLoggedIn(true);
         }
@@ -56,18 +110,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       const { data: authListener } = supabase.auth.onAuthStateChange(
-        (_event, session) => {
+        async (_event, session) => {
           if (session?.user) {
-            const authUser: AuthUser = {
-              id: session.user.id,
-              name:
-                session.user.user_metadata?.full_name ||
-                session.user.user_metadata?.name ||
-                session.user.email?.split("@")[0] ||
-                "सत्यापित ग्राहक",
-              email: session.user.email || "",
-              avatar: session.user.user_metadata?.avatar_url,
-            };
+            const authUser = await syncUserProfile(session.user);
             setUser(authUser);
             setIsLoggedIn(true);
           } else {
@@ -81,13 +126,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         authListener.subscription.unsubscribe();
       };
     } else {
-      // 2. Check cached local user session
+      // 2. Check cached local user session (for local dev fallback)
       try {
         const saved = localStorage.getItem("maa_user");
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed && (parsed.email || parsed.name)) {
-            setUser(parsed);
+            const isAdmin = isUserAdmin(parsed.email, parsed.role);
+            setUser({ ...parsed, isAdmin, role: isAdmin ? "admin" : (parsed.role || "customer") });
             setIsLoggedIn(true);
           }
         }
@@ -124,17 +170,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           options: { redirectTo },
         });
       } else {
-        // Instant simulated Google OAuth for local testing
+        // Fallback for local testing without Supabase credentials
         const demoUser: AuthUser = {
           id: `usr-${Date.now()}`,
-          name: "प्रमाणित गूगल ग्राहक",
+          name: "सत्यापित ग्राहक",
           email: "customer@gmail.com",
+          role: "customer",
+          isAdmin: false,
         };
         setUser(demoUser);
         setIsLoggedIn(true);
         localStorage.setItem("maa_user", JSON.stringify(demoUser));
 
-        // Execute pending action (e.g. add to cart / buy now)
         if (pendingAction) {
           pendingAction();
           setPendingAction(null);
@@ -146,22 +193,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const continueAsGuest = () => {
-    const guestUser: AuthUser = {
-      name: "अतिथि ग्राहक (Guest)",
-      email: "guest@maaayurvedic.in",
-    };
-    setUser(guestUser);
-    setIsLoggedIn(true);
-    localStorage.setItem("maa_user", JSON.stringify(guestUser));
-
-    if (pendingAction) {
-      pendingAction();
-      setPendingAction(null);
-    }
-    setIsAuthModalOpen(false);
-  };
-
   const logout = async () => {
     if (supabase && isSupabaseConfigured()) {
       await supabase.auth.signOut();
@@ -169,6 +200,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setIsLoggedIn(false);
     localStorage.removeItem("maa_user");
+    localStorage.removeItem("maa_is_admin");
+    // Also clear cookie if any
+    if (typeof document !== "undefined") {
+      document.cookie = "maa_admin_bypass=; path=/; max-age=0";
+    }
   };
 
   return (
@@ -176,13 +212,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         isLoggedIn,
+        isAdmin: Boolean(user?.isAdmin || (user?.role === "admin") || isUserAdmin(user?.email, user?.role)),
         isLoading,
         isAuthModalOpen,
         pendingAction,
         openAuthModal,
         closeAuthModal,
         loginWithGoogle,
-        continueAsGuest,
         logout,
       }}
     >

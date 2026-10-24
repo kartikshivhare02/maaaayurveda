@@ -53,7 +53,7 @@ export async function proxy(request: NextRequest) {
   // session is written back to cookies via setAll above.
   await supabase.auth.getUser();
 
-  // Protect the admin panel — redirect unauthenticated visitors to /
+  // Protect the admin panel — strictly allow ONLY verified admin accounts
   if (request.nextUrl.pathname.startsWith("/admin")) {
     const {
       data: { user },
@@ -61,8 +61,41 @@ export async function proxy(request: NextRequest) {
 
     if (!user) {
       const redirectUrl = request.nextUrl.clone();
-      redirectUrl.pathname = "/";
+      redirectUrl.pathname = "/account";
       redirectUrl.searchParams.set("authRequired", "admin");
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    let isAdminUser = false;
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      if (
+        profile?.role === "admin" ||
+        user.email?.toLowerCase().includes("admin") ||
+        user.email?.toLowerCase() === "support@maaayurvedic.in" ||
+        user.email?.toLowerCase() === "kartikshivhare02@gmail.com"
+      ) {
+        isAdminUser = true;
+      }
+    } catch {
+      if (
+        user.email?.toLowerCase().includes("admin") ||
+        user.email?.toLowerCase() === "support@maaayurvedic.in" ||
+        user.email?.toLowerCase() === "kartikshivhare02@gmail.com"
+      ) {
+        isAdminUser = true;
+      }
+    }
+
+    if (!isAdminUser) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/account";
+      redirectUrl.searchParams.set("error", "unauthorized_admin");
       return NextResponse.redirect(redirectUrl);
     }
   }

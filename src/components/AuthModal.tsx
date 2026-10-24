@@ -4,10 +4,10 @@ import React from "react";
 import Image from "next/image";
 import { useAuth } from "@/lib/context/AuthContext";
 import { BRAND_INFO } from "@/lib/data/mockData";
-import { Lock, ShieldCheck, X, Sparkles, ArrowRight } from "lucide-react";
+import { ShieldCheck, X, Sparkles } from "lucide-react";
 
 export const AuthModal: React.FC = () => {
-  const { isAuthModalOpen, closeAuthModal, loginWithGoogle, continueAsGuest } = useAuth();
+  const { isAuthModalOpen, closeAuthModal, loginWithGoogle } = useAuth();
 
   if (!isAuthModalOpen) return null;
 
@@ -54,10 +54,10 @@ export const AuthModal: React.FC = () => {
               id="auth-modal-title"
               className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight"
             >
-              कार्ट में जोड़ने के लिए लॉगिन करें
+              लॉगिन करें (Sign In with Google)
             </h2>
             <p className="text-xs sm:text-sm text-gray-500 leading-relaxed max-w-xs mx-auto">
-              ऑर्डर ट्रैकिंग, मुफ्त होम डिलीवरी और विशेष कॉम्बो छूट के लिए कृपया अपने Google खाते से लॉगिन करें।
+              सुरक्षित खरीदारी, 100% मनी-बैक गारंटी ट्रैकिंग व मुफ्त होम डिलीवरी हेतु कृपया अपने Google खाते से लॉगिन करें।
             </p>
           </div>
         </div>
@@ -67,7 +67,7 @@ export const AuthModal: React.FC = () => {
           <button
             type="button"
             onClick={loginWithGoogle}
-            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-800 border-2 border-gray-200 hover:border-gray-300 font-bold py-3.5 px-4 rounded-2xl shadow-xs transition-all text-sm group"
+            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-800 border-2 border-gray-200 hover:border-gray-300 font-bold py-3.5 px-4 rounded-2xl shadow-xs transition-all text-sm group cursor-pointer"
           >
             <svg
               className="w-5 h-5 shrink-0 group-hover:scale-110 transition-transform"
@@ -98,18 +98,6 @@ export const AuthModal: React.FC = () => {
             <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
             <span>100% सुरक्षित • कोई पासवर्ड याद रखने की जरूरत नहीं</span>
           </div>
-        </div>
-
-        {/* Guest fallback option */}
-        <div className="text-center pt-1 border-t border-gray-100">
-          <button
-            type="button"
-            onClick={continueAsGuest}
-            className="text-xs font-semibold text-gray-500 hover:text-emerald-800 transition-colors inline-flex items-center gap-1"
-          >
-            <span>बिना लॉगिन के अतिथि के रूप में जारी रखें</span>
-            <ArrowRight className="w-3 h-3" />
-          </button>
         </div>
       </div>
     </div>
