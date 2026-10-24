@@ -19,28 +19,26 @@ import {
 } from "lucide-react";
 
 export const StoryTestimonials: React.FC = () => {
-  const [stories, setStories] = useState<StoryTestimonial[]>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const stored = localStorage.getItem("maa_story_testimonials");
-        if (stored) {
-          const parsed: StoryTestimonial[] = JSON.parse(stored);
-          return parsed.filter((s) => s.isActive !== false);
-        }
-      } catch {
-        // ignore
-      }
-    }
-    return DEFAULT_STORY_TESTIMONIALS;
-  });
-
+  const [stories, setStories] = useState<StoryTestimonial[]>(DEFAULT_STORY_TESTIMONIALS);
   const [activeStoryIdx, setActiveStoryIdx] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<"after" | "before" | "video">("after");
   const [progress, setProgress] = useState(0);
 
   // Subscribe to storage update events & sync from Supabase
   useEffect(() => {
-    // 1. Fetch fresh stories from Supabase
+    // 1. Initial local storage hydrate after mount
+    try {
+      const stored = localStorage.getItem("maa_story_testimonials");
+      if (stored) {
+        const parsed: StoryTestimonial[] = JSON.parse(stored);
+        const activeOnly = parsed.filter((s) => s.isActive !== false);
+        if (activeOnly.length > 0) setStories(activeOnly);
+      }
+    } catch {
+      // ignore
+    }
+
+    // 2. Fetch fresh stories from Supabase
     fetch("/api/admin/stories")
       .then((res) => (res.ok ? res.json() : null))
       .then((json) => {
