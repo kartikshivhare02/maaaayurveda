@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/context/AuthContext";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import { Order } from "@/types";
 import {
   User,
@@ -34,14 +35,76 @@ export default function AccountPage() {
       }
     }
 
-    // Load local orders from localStorage
-    try {
-      const savedOrders: Order[] = JSON.parse(localStorage.getItem("maa_orders") || "[]");
-      setOrders(savedOrders);
-    } catch {
-      // ignore
+    if (!isLoggedIn || !user) {
+      setOrders([]);
+      return;
     }
-  }, []);
+
+    const loadOrdersForUser = async () => {
+      const userEmail = (user.email || "").toLowerCase().trim();
+      const userId = user.id;
+      let matchedOrders: Order[] = [];
+
+      // 1. Fetch from Supabase if configured
+      if (supabase && isSupabaseConfigured() && userEmail) {
+        try {
+          const { data } = await supabase
+            .from("orders")
+            .select("*")
+            .or(`customer_email.eq.${userEmail}${userId ? `,user_id.eq.${userId}` : ""}`)
+            .order("created_at", { ascending: false });
+
+          if (data && data.length > 0) {
+            matchedOrders = data.map((d: any) => ({
+              id: d.id,
+              orderNumber: d.order_number,
+              customerName: d.customer_name,
+              customerPhone: d.customer_phone,
+              customerEmail: d.customer_email,
+              shippingAddress: d.shipping_address,
+              items: d.items,
+              subtotalPaise: d.subtotal_paise,
+              discountPaise: d.discount_paise,
+              shippingPaise: d.shipping_paise,
+              totalPaise: d.total_paise,
+              paymentMethod: d.payment_method,
+              paymentStatus: d.payment_status,
+              fulfillmentStatus: d.fulfillment_status,
+              createdAt: d.created_at || new Date().toISOString(),
+              updatedAt: d.updated_at || d.created_at || new Date().toISOString(),
+            }));
+          }
+        } catch (err) {
+          console.error("Error loading user orders from Supabase:", err);
+        }
+      }
+
+      // 2. Fetch from LocalStorage and filter STRICTLY by the current user's email or user id
+      try {
+        const localOrders: any[] = JSON.parse(localStorage.getItem("maa_orders") || "[]");
+        const userLocalOrders = localOrders.filter((ord: any) => {
+          const ordEmail = (ord.customerEmail || ord.shippingAddress?.email || "").toLowerCase().trim();
+          const ordUserId = ord.userId || ord.user_id;
+          return (ordEmail && ordEmail === userEmail) || (userId && ordUserId === userId);
+        });
+
+        // Merge without duplicates by orderNumber
+        const existingNumbers = new Set(matchedOrders.map((o) => o.orderNumber));
+        for (const ord of userLocalOrders) {
+          if (!existingNumbers.has(ord.orderNumber)) {
+            matchedOrders.push(ord);
+            existingNumbers.add(ord.orderNumber);
+          }
+        }
+      } catch {
+        // ignore
+      }
+
+      setOrders(matchedOrders);
+    };
+
+    loadOrdersForUser();
+  }, [isLoggedIn, user?.email, user?.id]);
 
   const handleGoogleLogin = async () => {
     setAuthLoading(true);

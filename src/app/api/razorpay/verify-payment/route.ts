@@ -43,6 +43,7 @@ export async function POST(request: Request) {
           .from("orders")
           .upsert({
             order_number: orderData.orderNumber,
+            user_id: orderData.userId || null,
             customer_name: orderData.customerName,
             customer_phone: orderData.customerPhone,
             customer_email: orderData.customerEmail,

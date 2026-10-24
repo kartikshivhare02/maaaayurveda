@@ -178,13 +178,18 @@ export default function CheckoutPage() {
 
     try {
       const orderNumber = `MAA-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
+      const normalizedEmail = (user?.email || formData.email || "").toLowerCase().trim();
 
       const orderPayload = {
         orderNumber,
+        userId: user?.id,
         customerName: formData.fullName,
         customerPhone: cleanPhone,
-        customerEmail: formData.email,
-        shippingAddress: formData,
+        customerEmail: normalizedEmail,
+        shippingAddress: {
+          ...formData,
+          email: normalizedEmail,
+        },
         items,
         subtotalPaise,
         discountPaise,
