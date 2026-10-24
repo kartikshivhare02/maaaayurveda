@@ -46,13 +46,14 @@ export default function AccountPage() {
       let matchedOrders: Order[] = [];
 
       // 1. Fetch from Supabase if configured
-      if (supabase && isSupabaseConfigured() && userEmail) {
+      if (supabase && isSupabaseConfigured()) {
         try {
-          const { data } = await supabase
-            .from("orders")
-            .select("*")
-            .or(`customer_email.eq.${userEmail}${userId ? `,user_id.eq.${userId}` : ""}`)
-            .order("created_at", { ascending: false });
+          let query = supabase.from("orders").select("*").order("created_at", { ascending: false });
+          // Regular customers only see their own orders
+          if (!isAdmin && userEmail) {
+            query = query.or(`customer_email.eq.${userEmail}${userId ? `,user_id.eq.${userId}` : ""}`);
+          }
+          const { data } = await query;
 
           if (data && data.length > 0) {
             matchedOrders = data.map((d: any) => ({
@@ -65,7 +66,7 @@ export default function AccountPage() {
               items: d.items,
               subtotalPaise: d.subtotal_paise,
               discountPaise: d.discount_paise,
-              shippingPaise: d.shipping_paise,
+              shippingPaise: d.shipping_paise || 0,
               totalPaise: d.total_paise,
               paymentMethod: d.payment_method,
               paymentStatus: d.payment_status,
@@ -79,14 +80,22 @@ export default function AccountPage() {
         }
       }
 
-      // 2. Fetch from LocalStorage and filter STRICTLY by the current user's email or user id
+      // 2. Fetch from LocalStorage
       try {
         const localOrders: any[] = JSON.parse(localStorage.getItem("maa_orders") || "[]");
-        const userLocalOrders = localOrders.filter((ord: any) => {
-          const ordEmail = (ord.customerEmail || ord.shippingAddress?.email || "").toLowerCase().trim();
-          const ordUserId = ord.userId || ord.user_id;
-          return (ordEmail && ordEmail === userEmail) || (userId && ordUserId === userId);
-        });
+        let userLocalOrders: any[] = [];
+
+        if (isAdmin) {
+          // Admin can see all store orders
+          userLocalOrders = localOrders;
+        } else {
+          // Regular customer sees ONLY orders belonging to their email / user id
+          userLocalOrders = localOrders.filter((ord: any) => {
+            const ordEmail = (ord.customerEmail || ord.shippingAddress?.email || "").toLowerCase().trim();
+            const ordUserId = ord.userId || ord.user_id;
+            return (ordEmail && ordEmail === userEmail) || (userId && ordUserId === userId);
+          });
+        }
 
         // Merge without duplicates by orderNumber
         const existingNumbers = new Set(matchedOrders.map((o) => o.orderNumber));
@@ -104,7 +113,7 @@ export default function AccountPage() {
     };
 
     loadOrdersForUser();
-  }, [isLoggedIn, user?.email, user?.id]);
+  }, [isLoggedIn, isAdmin, user?.email, user?.id]);
 
   const handleGoogleLogin = async () => {
     setAuthLoading(true);
