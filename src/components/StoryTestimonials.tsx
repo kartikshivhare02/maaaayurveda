@@ -38,8 +38,22 @@ export const StoryTestimonials: React.FC = () => {
   const [viewMode, setViewMode] = useState<"after" | "before" | "video">("after");
   const [progress, setProgress] = useState(0);
 
-  // Subscribe to storage update events
+  // Subscribe to storage update events & sync from Supabase
   useEffect(() => {
+    // 1. Fetch fresh stories from Supabase
+    fetch("/api/admin/stories")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (json?.stories && Array.isArray(json.stories) && json.stories.length > 0) {
+          const activeOnly = json.stories.filter((s: StoryTestimonial) => s.isActive !== false);
+          setStories(activeOnly);
+          try {
+            localStorage.setItem("maa_story_testimonials", JSON.stringify(json.stories));
+          } catch {}
+        }
+      })
+      .catch((err) => console.error("Failed to sync stories from Supabase:", err));
+
     const handleStorageChange = () => {
       try {
         const stored = localStorage.getItem("maa_story_testimonials");

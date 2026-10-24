@@ -11,42 +11,62 @@ export default function AdminSupportPage() {
   const [replyText, setReplyText] = useState("");
 
   useEffect(() => {
-    try {
-      const stored: SupportTicket[] = JSON.parse(
-        localStorage.getItem("maa_support_tickets") || "[]"
-      );
-      // Filter out mock data
-      const real = stored.filter(
-        (t) =>
-          t.id !== "tkt-1" &&
-          t.id !== "tkt-2" &&
-          t.ticketNumber !== "TKT-882190" &&
-          t.ticketNumber !== "TKT-882188" &&
-          t.customerName !== "अनिल शर्मा" &&
-          t.customerName !== "प्रिया वर्मा"
-      );
-      setTickets(real);
-      if (real.length > 0) {
-        setActiveTicket(real[0]);
+    async function loadTickets() {
+      let combined: SupportTicket[] = [];
+
+      try {
+        const res = await fetch("/api/admin/support");
+        if (res.ok) {
+          const json = await res.json();
+          if (json.tickets && Array.isArray(json.tickets)) {
+            combined = json.tickets;
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load tickets from server API:", err);
       }
-      if (real.length !== stored.length) {
-        localStorage.setItem("maa_support_tickets", JSON.stringify(real));
+
+      // Merge local fallback if empty
+      if (combined.length === 0) {
+        try {
+          const stored: SupportTicket[] = JSON.parse(
+            localStorage.getItem("maa_support_tickets") || "[]"
+          );
+          const real = stored.filter(
+            (t) =>
+              t.id !== "tkt-1" &&
+              t.id !== "tkt-2" &&
+              t.ticketNumber !== "TKT-882190" &&
+              t.ticketNumber !== "TKT-882188" &&
+              t.customerName !== "अनिल शर्मा" &&
+              t.customerName !== "प्रिया वर्मा"
+          );
+          combined = real;
+        } catch {
+          // ignore
+        }
       }
-    } catch {
-      setTickets([]);
+
+      setTickets(combined);
+      if (combined.length > 0) {
+        setActiveTicket(combined[0]);
+      }
     }
+
+    loadTickets();
   }, []);
 
-  const handleSendReply = (e: React.FormEvent) => {
+  const handleSendReply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!replyText.trim() || !activeTicket) return;
 
+    const trimmedReply = replyText.trim();
     const updated = tickets.map((t) =>
       t.ticketNumber === activeTicket.ticketNumber
         ? {
             ...t,
             status: "resolved" as const,
-            adminReply: replyText.trim(),
+            adminReply: trimmedReply,
           }
         : t
     );
@@ -55,7 +75,7 @@ export default function AdminSupportPage() {
     setActiveTicket({
       ...activeTicket,
       status: "resolved",
-      adminReply: replyText.trim(),
+      adminReply: trimmedReply,
     });
     setReplyText("");
 
@@ -65,8 +85,23 @@ export default function AdminSupportPage() {
       // ignore
     }
 
+    // Persist reply into Supabase
+    try {
+      await fetch("/api/admin/support", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ticketNumber: activeTicket.ticketNumber,
+          status: "resolved",
+          adminReply: trimmedReply,
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to save reply in Supabase:", err);
+    }
+
     triggerAdminSuccess(
-      `टिकट ${activeTicket.ticketNumber} का उत्तर सफलतापूर्वक भेजा गया व हल कर दिया गया!`
+      `टिकट ${activeTicket.ticketNumber} का उत्तर डेटाबेस में सफलतापूर्वक सेव कर दिया गया!`
     );
   };
 

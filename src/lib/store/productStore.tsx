@@ -29,8 +29,9 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [images, setImages] = useState<ProductImageItem[]>(DEFAULT_PRODUCT_IMAGES);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load from localStorage on client mount
+  // Load from localStorage on client mount, and sync with Supabase
   useEffect(() => {
+    // 1. Instant local render
     try {
       const savedProduct = localStorage.getItem(PRODUCT_STORAGE_KEY);
       if (savedProduct) {
@@ -55,6 +56,45 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       // Fallback to default
     }
     setIsLoaded(true);
+
+    // 2. Fresh sync from Supabase
+    async function syncFromSupabase() {
+      try {
+        const res = await fetch("/api/admin/products");
+        if (res.ok) {
+          const json = await res.json();
+          if (json.product) {
+            const p = json.product;
+            setProduct((prev) => {
+              const updated: Product = {
+                ...prev,
+                name: p.name || prev.name,
+                hindiTitle: p.hindi_title || prev.hindiTitle,
+                subtitle: p.subtitle ?? prev.subtitle,
+                tagline: p.tagline ?? prev.tagline,
+                description: p.description || prev.description,
+                pricePaise: Number(p.price_paise) || prev.pricePaise,
+                mrpPaise: Number(p.mrp_paise) || prev.mrpPaise,
+                netQty: p.net_qty || prev.netQty,
+                stockCount: typeof p.stock_count === "number" ? p.stock_count : prev.stockCount,
+                inStock: typeof p.in_stock === "boolean" ? p.in_stock : prev.inStock,
+                images: Array.isArray(p.images) && p.images.length > 0 ? p.images : prev.images,
+                ingredients: Array.isArray(p.ingredients) && p.ingredients.length > 0 ? p.ingredients : prev.ingredients,
+                manufacturer: p.manufacturer || prev.manufacturer,
+                marketer: p.marketer || prev.marketer,
+                batchInfo: p.batch_info || prev.batchInfo,
+              };
+              localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(updated));
+              return updated;
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to sync product from Supabase:", err);
+      }
+    }
+
+    syncFromSupabase();
   }, []);
 
   // Listen for storage / custom events from admin

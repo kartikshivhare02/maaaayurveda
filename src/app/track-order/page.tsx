@@ -19,8 +19,21 @@ export default function TrackOrderPage() {
     setSearched(true);
     let foundOrder: Order | null = null;
 
-    // 1. Search in Supabase if configured
-    if (supabase && isSupabaseConfigured()) {
+    // 1. Search in Supabase via server API
+    try {
+      const res = await fetch(`/api/orders/track?q=${encodeURIComponent(clean)}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.order) {
+          foundOrder = json.order;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // 2. Direct Supabase client fallback if not found yet
+    if (!foundOrder && supabase && isSupabaseConfigured()) {
       try {
         const { data } = await supabase
           .from("orders")

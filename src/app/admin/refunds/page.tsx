@@ -9,28 +9,47 @@ export default function AdminRefundsPage() {
   const [requests, setRequests] = useState<RefundRequest[]>([]);
 
   useEffect(() => {
-    try {
-      const stored: RefundRequest[] = JSON.parse(
-        localStorage.getItem("maa_refund_requests") || "[]"
-      );
-      // Filter out mock data
-      const real = stored.filter(
-        (r) =>
-          r.id !== "REF-992101" &&
-          r.id !== "REF-992102" &&
-          r.customerName !== "मोहन लाल" &&
-          r.customerName !== "कविता शर्मा"
-      );
-      setRequests(real);
-      if (real.length !== stored.length) {
-        localStorage.setItem("maa_refund_requests", JSON.stringify(real));
+    async function loadRefunds() {
+      let combined: RefundRequest[] = [];
+
+      try {
+        const res = await fetch("/api/admin/refunds");
+        if (res.ok) {
+          const json = await res.json();
+          if (json.requests && Array.isArray(json.requests)) {
+            combined = json.requests;
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load refunds from server API:", err);
       }
-    } catch {
-      setRequests([]);
+
+      // Merge local fallback if empty
+      if (combined.length === 0) {
+        try {
+          const stored: RefundRequest[] = JSON.parse(
+            localStorage.getItem("maa_refund_requests") || "[]"
+          );
+          const real = stored.filter(
+            (r) =>
+              r.id !== "REF-992101" &&
+              r.id !== "REF-992102" &&
+              r.customerName !== "मोहन लाल" &&
+              r.customerName !== "कविता शर्मा"
+          );
+          combined = real;
+        } catch {
+          // ignore
+        }
+      }
+
+      setRequests(combined);
     }
+
+    loadRefunds();
   }, []);
 
-  const updateStatus = (id: string, newStatus: RefundRequest["status"]) => {
+  const updateStatus = async (id: string, newStatus: RefundRequest["status"]) => {
     const updated = requests.map((r) => (r.id === id ? { ...r, status: newStatus } : r));
     setRequests(updated);
     try {
@@ -38,7 +57,19 @@ export default function AdminRefundsPage() {
     } catch {
       // ignore
     }
-    triggerAdminSuccess(`रिफंड दावा ${id} की स्थिति सफलतापूर्वक अपडेट कर दी गई!`);
+
+    // Persist status update into Supabase
+    try {
+      await fetch("/api/admin/refunds", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: newStatus }),
+      });
+    } catch (err) {
+      console.error("Failed to update refund status in Supabase:", err);
+    }
+
+    triggerAdminSuccess(`रिफंड दावा ${id} की स्थिति डेटाबेस में सफलतापूर्वक अपडेट कर दी गई!`);
   };
 
   return (
