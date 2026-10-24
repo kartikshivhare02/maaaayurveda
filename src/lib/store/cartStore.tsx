@@ -20,12 +20,15 @@ interface CartContextType {
   removeCoupon: () => void;
   selectedBundle: BundleOffer;
   setSelectedBundle: (bundle: BundleOffer) => void;
+  bundles: BundleOffer[];
+  updateBundles: (updated: BundleOffer[]) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [bundles, setBundles] = useState<BundleOffer[]>(BUNDLE_OFFERS);
   const [selectedBundle, setSelectedBundle] = useState<BundleOffer>(
     BUNDLE_OFFERS.find((b) => b.isPopular) || BUNDLE_OFFERS[0]
   );
@@ -35,6 +38,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Load from localStorage on mount
   useEffect(() => {
     try {
+      const savedBundles = localStorage.getItem("maa_bundle_offers");
+      if (savedBundles) {
+        const parsedBundles: BundleOffer[] = JSON.parse(savedBundles);
+        if (Array.isArray(parsedBundles) && parsedBundles.length > 0) {
+          setBundles(parsedBundles);
+          const popular = parsedBundles.find((b) => b.isPopular) || parsedBundles[0];
+          setSelectedBundle(popular);
+        }
+      }
+
       const saved = localStorage.getItem("maa_ayurvedic_cart");
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -90,6 +103,40 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
   }, [items, isLoaded]);
+
+  // Sync bundles across windows/events
+  useEffect(() => {
+    const handleBundleSync = () => {
+      try {
+        const saved = localStorage.getItem("maa_bundle_offers");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setBundles(parsed);
+          }
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    window.addEventListener("maa_bundles_updated", handleBundleSync);
+    window.addEventListener("storage", handleBundleSync);
+    return () => {
+      window.removeEventListener("maa_bundles_updated", handleBundleSync);
+      window.removeEventListener("storage", handleBundleSync);
+    };
+  }, []);
+
+  const updateBundles = (updated: BundleOffer[]) => {
+    setBundles(updated);
+    try {
+      localStorage.setItem("maa_bundle_offers", JSON.stringify(updated));
+      window.dispatchEvent(new Event("maa_bundles_updated"));
+    } catch {
+      // ignore
+    }
+  };
 
   const addItem = (bundle: BundleOffer, qty = 1) => {
     setItems((prev) => {
@@ -211,6 +258,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         removeCoupon,
         selectedBundle,
         setSelectedBundle,
+        bundles,
+        updateBundles,
       }}
     >
       {children}

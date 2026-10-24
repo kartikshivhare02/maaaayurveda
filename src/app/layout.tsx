@@ -1,11 +1,14 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Noto_Sans_Devanagari, Inter } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/lib/context/AuthContext";
+import { ProductProvider } from "@/lib/store/productStore";
 import { CartProvider } from "@/lib/store/cartStore";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { FloatingSupport } from "@/components/FloatingSupport";
 import { MobileStickyBar } from "@/components/MobileStickyBar";
+import { AuthModal } from "@/components/AuthModal";
 
 const devanagari = Noto_Sans_Devanagari({
   weight: ["400", "500", "600", "700", "800"],
@@ -20,10 +23,18 @@ const inter = Inter({
   display: "swap",
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
+  themeColor: "#0b3d2e",
+};
+
 export const metadata: Metadata = {
   title: "माँ आयुर्वेदिक क्रीम — दाद, खाज, खुजली और सोरायसिस में राहत",
   description:
-    "100% शुद्ध जड़ी-बूटियों (नीम, हल्दी, करंज, गंधक, कपूर) से निर्मित माँ आयुर्वेदिक क्रीम। दाद, पुरानी खुजली, दरार और सोरायसिस से जुड़ी जलन को शांत करने के लिए प्रामाणिक फॉर्मूला।",
+    "100% शुद्ध आयुर्वेदिक जड़ी-बूटियों (बाकुची तेल 15%, वैसलीन सल्फर 12%, कत्था 4%, गंध पुष्पा, शुद्ध गंधक, नीला थोथा) से निर्मित माँ आयुर्वेदिक क्रीम। दाद, पुरानी खुजली, दरार और सोरायसिस में प्रामाणिक राहत।",
   keywords: [
     "माँ आयुर्वेदिक क्रीम",
     "दाद की दवा",
@@ -66,14 +77,19 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
-      <body className="min-h-screen flex flex-col font-sans bg-[#fdfdfd] text-slate-800 antialiased selection:bg-emerald-100 selection:text-emerald-900">
-        <CartProvider>
-          <Header />
-          <main className="flex-1">{children}</main>
-          <Footer />
-          <FloatingSupport />
-          <MobileStickyBar />
-        </CartProvider>
+      <body className="min-h-screen flex flex-col font-sans bg-[#fdfdfd] text-slate-800 antialiased selection:bg-emerald-100 selection:text-emerald-900 w-full max-w-full overflow-x-hidden">
+        <AuthProvider>
+          <ProductProvider>
+            <CartProvider>
+              <Header />
+              <main className="flex-1 w-full max-w-full overflow-x-hidden pb-28 sm:pb-0">{children}</main>
+              <Footer />
+              <FloatingSupport />
+              <MobileStickyBar />
+              <AuthModal />
+            </CartProvider>
+          </ProductProvider>
+        </AuthProvider>
       </body>
     </html>
   );

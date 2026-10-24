@@ -1,4 +1,31 @@
-import { Product, BundleOffer, Review, Coupon, SEOAuditIssue, StoryTestimonial } from "@/types";
+import { Product, BundleOffer, Review, Coupon, SEOAuditIssue, StoryTestimonial, ProductImageItem } from "@/types";
+
+export const DEFAULT_PRODUCT_IMAGES: ProductImageItem[] = [
+  {
+    id: "img-1",
+    url: "/images/product.jpeg",
+    label: "मुख्य जार पैकेजिंग (50g)",
+    subtitle: "प्राथमिक उत्पाद फोटो",
+    isPrimary: true,
+    type: "primary",
+  },
+  {
+    id: "img-2",
+    url: "/images/details.jpeg",
+    label: "परहेज व खान-पान पर्चा",
+    subtitle: "सख्त खान-पान निर्देश",
+    isPrimary: false,
+    type: "secondary",
+  },
+  {
+    id: "img-3",
+    url: "/images/logo.jpeg",
+    label: "ब्रांड प्रामाणिकता सील",
+    subtitle: "100% असली माँ आयुर्वेदिक",
+    isPrimary: false,
+    type: "secondary",
+  },
+];
 
 export const BRAND_INFO = {
   name: "माँ आयुर्वेदिक क्रीम",
@@ -22,7 +49,7 @@ export const MAIN_PRODUCT: Product = {
   subtitle: "100% शुद्ध आयुर्वेदिक जड़ी-बूटियों से निर्मित प्राकृतिक त्वचा क्रीम",
   tagline: "माँ का ख्याल, प्रकृति का कमाल",
   description:
-    "माँ आयुर्वेदिक क्रीम सदियों पुरानी पारंपरिक आयुर्वेदिक जड़ी-बूटियों (नीम, हल्दी, करंज, शुद्ध गंधक व कपूर) के सटीक मिश्रण से तैयार की गई एक प्रभावी मलहम है। यह दाद (Fungal Ringworm), दरार, पुरानी खुजली और सोरायसिस से जुड़ी जलन व रूखेपन को शांत करने और त्वचा के प्राकृतिक स्वास्थ्य को वापस लाने में अत्यंत सहायक है। इसमें कोई स्टेरॉयड या हानिकारक केमिकल नहीं है।",
+    "माँ आयुर्वेदिक क्रीम सदियों पुरानी पारंपरिक आयुर्वेदिक जड़ी-बूटियों एवं सक्रिय घटकों (बाकुची तेल 15%, वैसलीन सल्फर 12%, कत्था 4%, गंध पुष्पा 3%, शुद्ध गंधक 3%, नीला थोथा 2% एवं हरितोली 1%) के सटीक औषधीय फॉर्मूले से तैयार की गई एक प्रभावी मलहम है। यह दाद (Ringworm), दरार, पुरानी खुजली और सोरायसिस से जुड़ी जलन व रूखेपन को शांत करने और त्वचा के प्राकृतिक स्वास्थ्य को वापस लाने में अत्यंत सहायक है।",
   mrpPaise: 69900, // ₹699
   pricePaise: 49900, // ₹499
   netQty: "50 ग्राम",
@@ -37,33 +64,51 @@ export const MAIN_PRODUCT: Product = {
   classification: "आयुर्वेदिक प्रोप्रायटरी औषधि (Ayurvedic Proprietary Medicine)",
   ingredients: [
     {
-      hindiName: "नीम तेल व अर्क (Azadirachta Indica)",
-      purpose: "प्रबल एंटीबैक्टीरियल व एंटीफंगल गुण, त्वचा के संक्रमण को जड़ से नियंत्रित करता है।",
-      percentage: "10%",
+      hindiName: "बाकुची तेल (Bakuchi oil / Psoralea corylifolia)",
+      botanicalName: "Psoralea corylifolia",
+      purpose: "पारंपरिक रूप से चर्म रोग, दाद (रिंगवर्म), खाज व पुरानी जिद्दी खुजली में अत्यंत गुणकारी सक्रिय घटक।",
+      percentage: "15%",
     },
     {
-      hindiName: "शुद्ध हल्दी (Curcuma Longa)",
-      purpose: "सूजन-रोधी (Anti-inflammatory) और त्वचा को हील करने में सहायक।",
-      percentage: "8%",
+      hindiName: "वैसलीन सल्फर (Vaseline Sulfur)",
+      botanicalName: "Sulfur Base",
+      purpose: "त्वचा को गहराई से नमी, दरारों में सुरक्षा और रोगाणुरोधी आवरण प्रदान करता है।",
+      percentage: "12%",
     },
     {
-      hindiName: "करंज तेल (Pongamia Pinnata)",
-      purpose: "पारंपरिक रूप से चर्म रोग, दाद व पुरानी खाज में अत्यंत गुणकारी।",
-      percentage: "7%",
+      hindiName: "कत्था (Katha / Acacia catechu)",
+      botanicalName: "Acacia catechu",
+      purpose: "प्राकृतिक रक्तशोधक, त्वचा की जलन, छालों और घावों को तेजी से सुखाने में सहायक।",
+      percentage: "4%",
     },
     {
-      hindiName: "शुद्ध गंधक (Purified Sulphur)",
-      purpose: "आयुर्वेद सम्मत रोगाणुरोधी घटक जो फंगल इन्फेक्शन को फैलने से रोकता है।",
-      percentage: "5%",
-    },
-    {
-      hindiName: "भीमसेनी कपूर (Camphor)",
-      purpose: "खुजली और त्वचा की जलन में तुरंत ठंडक व राहत देता है।",
+      hindiName: "गंध पुष्पा (Gandh Pushpa / Salix caprea)",
+      botanicalName: "Salix caprea",
+      purpose: "त्वचा की सूजन (Anti-inflammatory), लालिमा और असहनीय जलन को शांत कर ठंडक देता है।",
       percentage: "3%",
     },
     {
-      hindiName: "शुद्ध मोम व तिल का तेल बेस (Beeswax & Sesame Oil Base)",
-      purpose: "क्रीम को गहराई तक समाहित करता है और त्वचा की दरारों को भरता है।",
+      hindiName: "शुद्ध गंधक (Gandhak / Copper (I) / Purified Sulphur)",
+      botanicalName: "Purified Sulphur",
+      purpose: "आयुर्वेद सम्मत शक्तिशाली रोगाणुरोधी खनिज जो फंगल व बैक्टीरियल संक्रमण को जड़ से नियंत्रित करता है।",
+      percentage: "3%",
+    },
+    {
+      hindiName: "नीला थोथा (Neela Totha / Purified Blue Vitriol)",
+      botanicalName: "Purified Copper Compound",
+      purpose: "शास्त्रीय आयुर्वेदिक शोधित घटक जो जिद्दी दाद व फंगस को नष्ट कर त्वचा का सुधार करता है।",
+      percentage: "2%",
+    },
+    {
+      hindiName: "हरितोली (Haritoli / Gymnema sylvestre)",
+      botanicalName: "Gymnema sylvestre",
+      purpose: "दुर्लभ जड़ी-बूटी अर्क जो त्वचा की प्रतिरोधक क्षमता और सूक्ष्म संक्रमण नियंत्रण में उपयोगी है।",
+      percentage: "1%",
+    },
+    {
+      hindiName: "क्रीम बेस (Cream Base)",
+      botanicalName: "Cream Base Q.S.",
+      purpose: "सभी सक्रिय आयुर्वेदिक घटकों को त्वचा की गहराई तक समाहित करने वाला सुरक्षित मखमली बेस।",
       percentage: "Q.S. (आवश्यकतानुसार)",
     },
   ],

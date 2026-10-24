@@ -9,7 +9,7 @@ export const FloatingSupport: React.FC = () => {
   const cleanPhone = BRAND_INFO.whatsappNumber.replace(/[^0-9]/g, "");
 
   return (
-    <div className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end gap-3">
+    <div className="hidden sm:flex fixed bottom-6 right-6 z-40 flex-col items-end gap-3">
       {/* Expanded Quick Help Box */}
       {isOpen && (
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-4 w-72 sm:w-80 transition-all animate-in fade-in slide-in-from-bottom-5">

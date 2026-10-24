@@ -12,6 +12,7 @@ export interface Product {
   inStock: boolean;
   stockCount: number;
   images: string[];
+  galleryImages?: ProductImageItem[];
   category: string;
   classification: string;
   ingredients: {
@@ -42,6 +43,15 @@ export interface Product {
     expiryDate: string;
     shelfLife: string;
   };
+}
+
+export interface ProductImageItem {
+  id: string;
+  url: string;
+  label: string;
+  subtitle?: string;
+  isPrimary: boolean;
+  type?: "primary" | "secondary";
 }
 
 export interface BundleOffer {
@@ -188,5 +198,19 @@ export interface StoryTestimonial {
   isVerified: boolean;
   isActive: boolean;
   createdAt: string;
+}
+
+export interface SiteSettings {
+  id: string;
+  brandName: string;
+  tagline: string;
+  logoUrl: string;
+  whatsappNumber: string;
+  whatsappDisplay: string;
+  supportEmail: string;
+  supportHours: string;
+  address: string;
+  licenseNo: string;
+  announcementText: string;
 }
 

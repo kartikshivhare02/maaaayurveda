@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/lib/store/cartStore";
@@ -13,216 +13,254 @@ import {
   ShieldCheck,
   MessageCircle,
   Package,
+  ChevronDown,
+  Leaf,
 } from "lucide-react";
 
 export const Header: React.FC = () => {
   const { totalItems } = useCart();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const cleanPhone = BRAND_INFO.whatsappNumber.replace(/[^0-9]/g, "");
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Close mobile menu on route change / resize
+  useEffect(() => {
+    const close = () => setMobileMenuOpen(false);
+    window.addEventListener("resize", close);
+    return () => window.removeEventListener("resize", close);
+  }, []);
+
+  const navLinks = [
+    { href: "/", label: "होम" },
+    { href: "/product", label: "उत्पाद विवरण" },
+    { href: "/#offers", label: "कॉम्बो ऑफर", badge: "छूट" },
+    { href: "/#diet", label: "परहेज गाइड" },
+    { href: "/#stories", label: "ग्राहक कहानियां" },
+    { href: "/refund-guarantee", label: "मनी-बैक" },
+  ];
 
   return (
     <>
-      {/* Sleek Announcement Strip */}
-      <div className="bg-[#0b3b2c] text-white text-[11px] sm:text-xs py-1.5 px-3 sm:px-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 font-medium truncate">
-            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
-            <span className="truncate">🌿 100% शुद्ध आयुर्वेदिक फॉर्मूला • मुफ्त डिलीवरी • कैश ऑन डिलीवरी</span>
+      {/* ─── Announcement Strip ─────────────────────────────── */}
+      <div className="trust-strip text-white py-2 px-3 overflow-hidden">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+          {/* Scrolling ticker on mobile */}
+          <div className="flex items-center gap-2 text-[11px] sm:text-xs font-medium overflow-hidden">
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400"></span>
+            </span>
+            <span className="truncate text-emerald-50">
+              🌿 100% शुद्ध आयुर्वेदिक • मुफ्त डिलीवरी • कैश ऑन डिलीवरी • आयुष प्रमाणित
+            </span>
           </div>
-          <div className="hidden sm:flex items-center gap-4 text-emerald-100 shrink-0 text-xs">
-            <span className="flex items-center gap-1">
+          <div className="hidden sm:flex items-center gap-4 shrink-0 text-xs text-emerald-100">
+            <span className="flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-              100% मनी-बैक गारंटी
+              <span>100% मनी-बैक</span>
             </span>
             <a
               href={`https://wa.me/${cleanPhone}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-emerald-200 hover:text-white transition-colors"
+              className="flex items-center gap-1.5 text-emerald-200 hover:text-white transition-colors"
             >
               <Phone className="w-3 h-3 text-emerald-400" />
-              हेल्पलाइन: {BRAND_INFO.whatsappDisplay}
+              <span>{BRAND_INFO.whatsappDisplay}</span>
             </a>
           </div>
         </div>
       </div>
 
-      {/* Main Sticky Header (Compact & Finger Friendly) */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-xs">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14 sm:h-16">
-            {/* Brand Logo Only (Self-contained Emblem) */}
-            <Link href="/" className="flex items-center group py-1" aria-label={BRAND_INFO.name}>
-              <div className="relative h-12 w-12 sm:h-14 sm:w-14 rounded-full overflow-hidden border-2 border-emerald-700/30 shadow-xs group-hover:scale-105 transition-transform duration-200 bg-white">
+      {/* ─── Main Sticky Header ──────────────────────────────── */}
+      <header
+        className={`sticky top-0 z-40 transition-all duration-300 ${
+          scrolled
+            ? "glass-nav shadow-[0_2px_20px_rgba(11,61,46,0.08)]"
+            : "bg-white/98"
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16 sm:h-[70px]">
+
+            {/* ── Brand Logo ─────────────────── */}
+            <Link
+              href="/"
+              className="flex items-center gap-3 group py-1 min-w-0"
+              aria-label={BRAND_INFO.name}
+            >
+              <div className="relative h-11 w-11 sm:h-13 sm:w-13 rounded-full overflow-hidden ring-2 ring-forest-700/20 group-hover:ring-forest-700/40 shadow-md transition-all duration-300 bg-white shrink-0">
                 <Image
                   src={BRAND_INFO.logoUrl}
                   alt={BRAND_INFO.name}
                   fill
-                  sizes="56px"
+                  sizes="52px"
                   className="object-cover"
                   priority
                 />
               </div>
+              <div className="hidden sm:block min-w-0">
+                <div className="font-black text-forest-900 text-base leading-tight tracking-tight">
+                  {BRAND_INFO.name}
+                </div>
+                <div className="flex items-center gap-1 text-[10px] text-forest-600 font-semibold">
+                  <Leaf className="w-2.5 h-2.5" />
+                  <span>100% आयुर्वेदिक • आयुष प्रमाणित</span>
+                </div>
+              </div>
             </Link>
 
-            {/* Desktop Navigation Links */}
-            <nav className="hidden lg:flex items-center gap-7 font-medium text-gray-700 text-sm">
-              <Link href="/" className="hover:text-emerald-700 transition-colors">
-                होम
-              </Link>
-              <Link href="/product" className="hover:text-emerald-700 transition-colors">
-                प्रोडक्ट विवरण
-              </Link>
-              <Link href="/#offers" className="hover:text-emerald-700 transition-colors">
-                कॉम्बो ऑफर
-              </Link>
-              <Link href="/#diet" className="hover:text-emerald-700 transition-colors">
-                खान-पान व परहेज
-              </Link>
-              <Link href="/#stories" className="hover:text-emerald-700 transition-colors">
-                ग्राहक कहानियां
-              </Link>
-              <Link href="/refund-guarantee" className="hover:text-emerald-700 transition-colors">
-                मनी-बैक गारंटी
-              </Link>
+            {/* ── Desktop Nav ────────────────── */}
+            <nav className="hidden lg:flex items-center gap-1" role="navigation">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="relative flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold text-stone-700 hover:text-forest-800 hover:bg-forest-50 transition-all duration-200 group"
+                >
+                  {link.label}
+                  {link.badge && (
+                    <span className="text-[9px] font-black bg-amber-500 text-white px-1.5 py-0.5 rounded-full leading-none">
+                      {link.badge}
+                    </span>
+                  )}
+                </Link>
+              ))}
             </nav>
 
-            {/* Actions: WhatsApp + Cart + Menu */}
-            <div className="flex items-center gap-2 sm:gap-3">
-              {/* WhatsApp Quick Order button */}
+            {/* ── Action Icons ───────────────── */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              {/* WhatsApp CTA — desktop only */}
               <a
                 href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent(
                   "नमस्ते, मुझे माँ आयुर्वेदिक क्रीम ऑर्डर करनी है।"
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hidden sm:inline-flex items-center gap-1.5 bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#128C7E] px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors"
-                title="WhatsApp पर आर्डर करें"
+                className="hidden md:inline-flex items-center gap-1.5 bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#128C7E] px-3 py-2 rounded-xl text-xs font-bold transition-all border border-[#25D366]/20 hover:border-[#25D366]/40"
+                title="WhatsApp आर्डर"
               >
-                <MessageCircle className="w-3.5 h-3.5 fill-[#25D366] text-[#25D366]" />
-                <span>WhatsApp आर्डर</span>
+                <MessageCircle className="w-4 h-4 fill-[#25D366] text-[#25D366]" />
+                <span>WhatsApp</span>
               </a>
 
-              {/* Order Tracking / Account */}
+              {/* Order Tracking */}
               <Link
                 href="/account"
-                className="hidden md:flex items-center gap-1 text-xs font-medium text-gray-700 hover:text-emerald-700 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+                className="hidden lg:flex items-center gap-1.5 text-xs font-semibold text-stone-700 hover:text-forest-800 px-2.5 py-2 rounded-xl hover:bg-forest-50 transition-all"
                 title="ऑर्डर ट्रैक करें"
               >
-                <Package className="w-4 h-4 text-gray-600" />
-                <span>ऑर्डर ट्रैक</span>
+                <Package className="w-4 h-4" />
+                <span>ट्रैक करें</span>
               </Link>
 
               {/* Cart Button */}
               <Link
                 href="/cart"
-                className="relative flex items-center justify-center p-2 sm:p-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-xl transition-all"
+                className="relative flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 bg-forest-50 hover:bg-forest-100 text-forest-900 rounded-xl transition-all border border-forest-200/60 hover:border-forest-300 shadow-xs"
                 aria-label="शॉपिंग कार्ट"
               >
                 <ShoppingBag className="w-5 h-5" />
                 {totalItems > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-amber-500 text-white font-bold text-[11px] w-4.5 h-4.5 rounded-full flex items-center justify-center shadow-xs">
-                    {totalItems}
+                  <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-gradient-to-br from-amber-500 to-amber-600 text-white font-black text-[10px] rounded-full flex items-center justify-center shadow-md animate-scale-in">
+                    {totalItems > 9 ? "9+" : totalItems}
                   </span>
                 )}
               </Link>
 
-              {/* Mobile Menu Button */}
+              {/* Mobile Menu Toggle */}
               <button
                 type="button"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden p-2 rounded-xl text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors"
-                aria-label="मेनू खोलें"
+                id="mobile-menu-toggle"
+                onClick={() => setMobileMenuOpen((v) => !v)}
+                className="lg:hidden flex items-center justify-center w-10 h-10 rounded-xl text-stone-700 hover:text-forest-900 hover:bg-stone-100 transition-all"
+                aria-label={mobileMenuOpen ? "मेनू बंद करें" : "मेनू खोलें"}
+                aria-expanded={mobileMenuOpen}
               >
-                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                {mobileMenuOpen ? (
+                  <X className="w-5 h-5" />
+                ) : (
+                  <Menu className="w-5 h-5" />
+                )}
               </button>
             </div>
           </div>
         </div>
 
-        {/* Mobile Slide-Over Navigation */}
+        {/* ─── Mobile Drawer ───────────────────────────────── */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-gray-100 bg-white/98 backdrop-blur-md px-4 py-4 space-y-2 shadow-xl animate-in fade-in slide-in-from-top-2">
-            <Link
-              href="/"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold text-gray-800 hover:bg-emerald-50 hover:text-emerald-800"
-            >
-              <span>होम (Home)</span>
-              <span className="text-xs text-gray-400">→</span>
-            </Link>
-            <Link
-              href="/#offers"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold text-gray-800 hover:bg-emerald-50 hover:text-emerald-800"
-            >
-              <div className="flex items-center gap-2">
-                <span>कॉम्बो ऑफर (Pack Deals)</span>
-                <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
-                  छूट ऑफर
+          <div
+            id="mobile-nav-drawer"
+            className="lg:hidden border-t border-stone-100 bg-white shadow-xl animate-slide-up"
+            role="dialog"
+            aria-label="मोबाइल नेविगेशन"
+          >
+            {/* Nav Links */}
+            <nav className="px-3 py-3 space-y-0.5">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold text-stone-800 hover:bg-forest-50 hover:text-forest-800 transition-all"
+                >
+                  <span className="flex items-center gap-2">
+                    {link.label}
+                    {link.badge && (
+                      <span className="text-[9px] font-black bg-amber-500 text-white px-1.5 py-0.5 rounded-full">
+                        {link.badge}
+                      </span>
+                    )}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-stone-400 -rotate-90" />
+                </Link>
+              ))}
+              <Link
+                href="/track-order"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold text-stone-800 hover:bg-forest-50 hover:text-forest-800 transition-all"
+              >
+                <span className="flex items-center gap-2">
+                  <Package className="w-4 h-4 text-stone-500" />
+                  ऑर्डर ट्रैक करें
                 </span>
-              </div>
-              <span className="text-xs text-gray-400">→</span>
-            </Link>
-            <Link
-              href="/product"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold text-gray-800 hover:bg-emerald-50 hover:text-emerald-800"
-            >
-              <span>घटक व औषधीय विवरण (Ingredients)</span>
-              <span className="text-xs text-gray-400">→</span>
-            </Link>
-            <Link
-              href="/#diet"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold text-gray-800 hover:bg-emerald-50 hover:text-emerald-800"
-            >
-              <span>खान-पान एवं सख्त परहेज नियम</span>
-              <span className="text-xs text-gray-400">→</span>
-            </Link>
-            <Link
-              href="/#stories"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold text-gray-800 hover:bg-emerald-50 hover:text-emerald-800"
-            >
-              <span>सत्यापित ग्राहक कहानियां (Customer Stories)</span>
-              <span className="text-xs text-gray-400">→</span>
-            </Link>
-            <Link
-              href="/track-order"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold text-gray-800 hover:bg-emerald-50 hover:text-emerald-800"
-            >
-              <span>ऑर्डर ट्रैक करें (Track Order)</span>
-              <span className="text-xs text-gray-400">→</span>
-            </Link>
-            <Link
-              href="/refund-guarantee"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold text-gray-800 hover:bg-emerald-50 hover:text-emerald-800"
-            >
-              <span>100% मनी-बैक गारंटी नियम</span>
-              <span className="text-xs text-gray-400">→</span>
-            </Link>
+                <ChevronDown className="w-4 h-4 text-stone-400 -rotate-90" />
+              </Link>
+            </nav>
 
-            {/* Quick Contact within Mobile Drawer */}
-            <div className="pt-3 border-t border-gray-100 flex gap-2">
+            {/* Quick Contact Strip */}
+            <div className="px-3 pb-4 grid grid-cols-2 gap-2 border-t border-stone-100 pt-3">
               <a
-                href={`https://wa.me/${cleanPhone}`}
+                href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent(
+                  "नमस्ते, मुझे माँ आयुर्वेदिक क्रीम के बारे में जानकारी चाहिए।"
+                )}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 flex items-center justify-center gap-1.5 bg-[#25D366] text-white py-2.5 rounded-xl text-xs font-bold shadow-xs"
+                className="flex items-center justify-center gap-2 bg-[#25D366] text-white py-3 rounded-xl text-xs font-bold shadow-sm"
               >
-                <MessageCircle className="w-4 h-4 fill-white" />
+                <MessageCircle className="w-4 h-4" />
                 WhatsApp सहायता
               </a>
               <a
                 href={`tel:${cleanPhone}`}
-                className="flex-1 flex items-center justify-center gap-1.5 bg-gray-100 text-gray-800 py-2.5 rounded-xl text-xs font-semibold"
+                className="flex items-center justify-center gap-2 bg-stone-100 text-stone-800 py-3 rounded-xl text-xs font-semibold"
               >
-                <Phone className="w-3.5 h-3.5 text-emerald-700" />
+                <Phone className="w-3.5 h-3.5 text-forest-700" />
                 कॉल करें
               </a>
+            </div>
+
+            {/* Trust micro strip */}
+            <div className="px-4 pb-4 flex flex-wrap gap-3 text-[10px] text-stone-500 font-semibold">
+              <span className="flex items-center gap-1"><ShieldCheck className="w-3 h-3 text-forest-600" />100% मनी-बैक</span>
+              <span className="flex items-center gap-1"><Leaf className="w-3 h-3 text-forest-600" />आयुष प्रमाणित</span>
+              <span className="flex items-center gap-1">🚚 मुफ्त डिलीवरी</span>
             </div>
           </div>
         )}

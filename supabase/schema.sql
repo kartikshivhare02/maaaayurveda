@@ -182,7 +182,39 @@ CREATE TABLE IF NOT EXISTS admin_audit_logs (
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
--- 13. INDEXES FOR PERFORMANCE
+-- 13. STORY TESTIMONIALS TABLE (Real Before/After Customer Experiences)
+CREATE TABLE IF NOT EXISTS story_testimonials (
+  id TEXT PRIMARY KEY,
+  customer_name TEXT NOT NULL,
+  city TEXT NOT NULL,
+  concern TEXT NOT NULL,
+  duration TEXT NOT NULL,
+  rating INTEGER CHECK (rating >= 1 AND rating <= 5) DEFAULT 5 NOT NULL,
+  before_image_url TEXT NOT NULL,
+  after_image_url TEXT NOT NULL,
+  story_hindi TEXT NOT NULL,
+  is_verified BOOLEAN DEFAULT TRUE NOT NULL,
+  is_active BOOLEAN DEFAULT TRUE NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- 14. SITE SETTINGS TABLE (Centralized Storefront Configuration)
+CREATE TABLE IF NOT EXISTS site_settings (
+  id TEXT PRIMARY KEY DEFAULT 'main',
+  brand_name TEXT NOT NULL DEFAULT 'माँ आयुर्वेदिक क्रीम',
+  tagline TEXT NOT NULL DEFAULT 'माँ का ख्याल, प्रकृति का कमाल',
+  logo_url TEXT NOT NULL DEFAULT '/images/logo.jpeg',
+  whatsapp_number TEXT NOT NULL DEFAULT '+919876543210',
+  whatsapp_display TEXT NOT NULL DEFAULT '+91 98765 43210',
+  support_email TEXT NOT NULL DEFAULT 'support@maaayurvedic.in',
+  support_hours TEXT NOT NULL DEFAULT 'सोमवार से शनिवार (सुबह 10:00 से शाम 7:00 बजे तक)',
+  address TEXT NOT NULL DEFAULT 'आयुष प्रमाणित निर्माण इकाई, इंडस्ट्रियल एरिया, राजस्थान, भारत',
+  license_no TEXT NOT NULL DEFAULT 'AYU-RAJ-2024-8891',
+  announcement_text TEXT NOT NULL DEFAULT '🌿 100% शुद्ध आयुर्वेदिक फॉर्मूला • मुफ्त डिलीवरी • कैश ऑन डिलीवरी',
+  updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- 15. INDEXES FOR PERFORMANCE
 CREATE INDEX IF NOT EXISTS idx_orders_order_number ON orders(order_number);
 CREATE INDEX IF NOT EXISTS idx_orders_customer_phone ON orders(customer_phone);
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
@@ -191,8 +223,9 @@ CREATE INDEX IF NOT EXISTS idx_payments_razorpay_order_id ON payments(razorpay_o
 CREATE INDEX IF NOT EXISTS idx_coupons_code ON coupons(code);
 CREATE INDEX IF NOT EXISTS idx_refund_requests_order_number ON refund_requests(order_number);
 CREATE INDEX IF NOT EXISTS idx_support_tickets_ticket_number ON support_tickets(ticket_number);
+CREATE INDEX IF NOT EXISTS idx_story_testimonials_active ON story_testimonials(is_active);
 
--- 14. ROW LEVEL SECURITY (RLS) POLICIES
+-- 16. ROW LEVEL SECURITY (RLS) POLICIES
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bundles ENABLE ROW LEVEL SECURITY;
@@ -203,18 +236,28 @@ ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
 ALTER TABLE refund_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE support_tickets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE admin_audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE story_testimonials ENABLE ROW LEVEL SECURITY;
+ALTER TABLE site_settings ENABLE ROW LEVEL SECURITY;
 
 -- Products & Bundles: Anyone can view active products
 CREATE POLICY "Public read products" ON products FOR SELECT USING (true);
 CREATE POLICY "Public read bundles" ON bundles FOR SELECT USING (active = true);
+CREATE POLICY "Public read stories" ON story_testimonials FOR SELECT USING (is_active = true);
+CREATE POLICY "Public read site_settings" ON site_settings FOR SELECT USING (true);
 
--- Reviews: Anyone can view approved reviews
+-- Reviews: Anyone can view approved reviews, customers can submit
 CREATE POLICY "Public read approved reviews" ON reviews FOR SELECT USING (is_approved = true);
+CREATE POLICY "Public insert reviews" ON reviews FOR INSERT WITH CHECK (true);
 
--- Orders: Users can only see their own orders; public can insert with server verification
+-- Orders: Users can read own orders, customers can insert orders
 CREATE POLICY "Users can read own orders" ON orders FOR SELECT USING (
   auth.uid() = user_id OR user_id IS NULL
 );
+CREATE POLICY "Public insert orders" ON orders FOR INSERT WITH CHECK (true);
+
+-- Support Tickets & Refund Requests: Public can submit tickets & refund requests
+CREATE POLICY "Public insert support_tickets" ON support_tickets FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public insert refund_requests" ON refund_requests FOR INSERT WITH CHECK (true);
 
 -- Coupons: Anyone can verify valid coupons
 CREATE POLICY "Public read coupons" ON coupons FOR SELECT USING (is_active = true);
@@ -240,3 +283,27 @@ CREATE POLICY "Admin full access reviews" ON reviews FOR ALL USING (is_admin());
 CREATE POLICY "Admin full access refund_requests" ON refund_requests FOR ALL USING (is_admin());
 CREATE POLICY "Admin full access support_tickets" ON support_tickets FOR ALL USING (is_admin());
 CREATE POLICY "Admin full access audit_logs" ON admin_audit_logs FOR ALL USING (is_admin());
+CREATE POLICY "Admin full access stories" ON story_testimonials FOR ALL USING (is_admin());
+CREATE POLICY "Admin full access site_settings" ON site_settings FOR ALL USING (is_admin());
+
+-- 17. AUTOMATIC PROFILE CREATION TRIGGER (On Google Auth Signup)
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name, email, role)
+  VALUES (
+    new.id,
+    COALESCE(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', 'Valued Customer'),
+    new.email,
+    'customer'
+  )
+  ON CONFLICT (id) DO NOTHING;
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+

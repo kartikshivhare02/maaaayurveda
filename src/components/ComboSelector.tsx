@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/store/cartStore";
+import { useAuth } from "@/lib/context/AuthContext";
 import { BUNDLE_OFFERS } from "@/lib/data/mockData";
 import {
   Check,
@@ -17,17 +18,35 @@ import {
 
 export const ComboSelector: React.FC = () => {
   const router = useRouter();
-  const { addItem, selectedBundle, setSelectedBundle } = useCart();
+  const { addItem, selectedBundle, setSelectedBundle, bundles } = useCart();
+  const { isLoggedIn, openAuthModal } = useAuth();
   const [quantity, setQuantity] = useState(1);
   const [addedNotice, setAddedNotice] = useState(false);
 
+  const activeBundles = bundles && bundles.length > 0 ? bundles : BUNDLE_OFFERS;
+
   const handleAddToCart = () => {
+    if (!isLoggedIn) {
+      openAuthModal(() => {
+        addItem(selectedBundle, quantity);
+        setAddedNotice(true);
+        setTimeout(() => setAddedNotice(false), 2500);
+      });
+      return;
+    }
     addItem(selectedBundle, quantity);
     setAddedNotice(true);
     setTimeout(() => setAddedNotice(false), 2500);
   };
 
   const handleBuyNow = () => {
+    if (!isLoggedIn) {
+      openAuthModal(() => {
+        addItem(selectedBundle, quantity);
+        router.push("/checkout");
+      });
+      return;
+    }
     addItem(selectedBundle, quantity);
     router.push("/checkout");
   };
@@ -54,7 +73,7 @@ export const ComboSelector: React.FC = () => {
 
       {/* Offer Cards */}
       <div className="space-y-3.5 mb-6">
-        {BUNDLE_OFFERS.map((bundle) => {
+        {activeBundles.map((bundle) => {
           const isSelected = selectedBundle.id === bundle.id;
           const perPack = Math.round(bundle.pricePaise / bundle.packCount / 100);
 
@@ -208,18 +227,18 @@ export const ComboSelector: React.FC = () => {
       )}
 
       {/* Trust Highlights */}
-      <div className="grid grid-cols-3 gap-2 mt-6 pt-5 border-t border-gray-100 text-[11px] text-gray-600 text-center sm:text-left">
-        <div className="flex items-center gap-1.5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 mt-6 pt-5 border-t border-gray-100 text-xs text-gray-600">
+        <div className="flex items-center justify-center sm:justify-start gap-1.5 bg-stone-50 sm:bg-transparent py-1.5 sm:py-0 rounded-lg">
           <Truck className="w-4 h-4 text-emerald-700 shrink-0" />
-          <span>मुफ्त होम डिलीवरी</span>
+          <span className="font-medium">मुफ्त होम डिलीवरी</span>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center justify-center sm:justify-start gap-1.5 bg-stone-50 sm:bg-transparent py-1.5 sm:py-0 rounded-lg">
           <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
-          <span>कैश ऑन डिलीवरी</span>
+          <span className="font-medium">कैश ऑन डिलीवरी</span>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center justify-center sm:justify-start gap-1.5 bg-stone-50 sm:bg-transparent py-1.5 sm:py-0 rounded-lg">
           <RotateCcw className="w-4 h-4 text-emerald-700 shrink-0" />
-          <span>30 दिन मनी-बैक</span>
+          <span className="font-medium">30 दिन मनी-बैक</span>
         </div>
       </div>
     </div>

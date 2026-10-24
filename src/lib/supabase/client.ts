@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
@@ -11,6 +11,12 @@ export const isSupabaseConfigured = () => {
   );
 };
 
+/**
+ * Browser/client-component Supabase client.
+ * Uses @supabase/ssr so the session is stored in cookies (readable by
+ * server components and API routes). Always call this at the top level
+ * of a client component — never inside a loop or conditional.
+ */
 export const supabase = isSupabaseConfigured()
-  ? createClient(supabaseUrl, supabaseAnonKey)
+  ? createBrowserClient(supabaseUrl, supabaseAnonKey)
   : null;

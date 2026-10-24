@@ -75,6 +75,8 @@ export default function CheckoutPage() {
 
   // Payment method: "razorpay_online" or "cod"
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("razorpay_online");
+  const [pincodeLoading, setPincodeLoading] = useState(false);
+  const [pincodeMsg, setPincodeMsg] = useState<string | null>(null);
 
   useEffect(() => {
     // If cart is empty, redirect back
@@ -93,20 +95,45 @@ export default function CheckoutPage() {
   const handlePincodeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const pin = e.target.value.replace(/\D/g, "");
     setFormData((prev) => ({ ...prev, pincode: pin }));
+    setPincodeMsg(null);
 
     if (pin.length === 6) {
       try {
+        setPincodeLoading(true);
         const res = await fetch(`/api/pincode/${pin}`);
         const data = await res.json();
-        if (data.deliverable && data.state) {
-          // Auto select state if matches
-          const match = INDIAN_STATES.find((s) => s.includes(data.state.split(" ")[0]));
-          if (match) {
-            setFormData((prev) => ({ ...prev, state: match }));
-          }
+        if (data.deliverable) {
+          setFormData((prev) => {
+            const updated = { ...prev };
+            // Auto fill city
+            if (data.city) {
+              updated.city = data.city;
+            }
+            // Auto match and fill state
+            if (data.state) {
+              const cleanedStateName = data.state.replace(/\(.*\)/, "").trim().toLowerCase();
+              const match = INDIAN_STATES.find((s) => {
+                const sClean = s.toLowerCase();
+                return sClean.includes(cleanedStateName) || data.state.toLowerCase().includes(s.split(" ")[0].toLowerCase());
+              });
+              if (match) {
+                updated.state = match;
+              } else {
+                updated.state = data.state;
+              }
+            }
+            return updated;
+          });
+
+          const locText = [data.city, data.state].filter(Boolean).join(", ");
+          setPincodeMsg(`पिनकोड सत्यापित: ${locText} (मुफ्त डिलीवरी उपलब्ध)`);
+        } else if (data.message) {
+          setPincodeMsg(data.message);
         }
       } catch {
         // fallback
+      } finally {
+        setPincodeLoading(false);
       }
     }
   };
@@ -435,6 +462,18 @@ export default function CheckoutPage() {
                         onChange={handlePincodeChange}
                         className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold"
                       />
+                      {pincodeLoading && (
+                        <p className="text-[11px] text-emerald-700 font-medium mt-1 animate-pulse flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping"></span>
+                          शहर और राज्य खोज रहे हैं...
+                        </p>
+                      )}
+                      {!pincodeLoading && pincodeMsg && (
+                        <p className="text-[11px] text-emerald-800 font-semibold mt-1 flex items-center gap-1 bg-emerald-50 p-1.5 rounded-lg border border-emerald-200">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span>{pincodeMsg}</span>
+                        </p>
+                      )}
                     </div>
 
                     <div>
@@ -506,13 +545,13 @@ export default function CheckoutPage() {
                       onChange={() => setPaymentMethod("razorpay_online")}
                       className="mt-1 text-emerald-600 focus:ring-emerald-500"
                     />
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center justify-between gap-1.5">
                         <span className="font-bold text-gray-900 text-sm sm:text-base flex items-center gap-2">
-                          <CreditCard className="w-4 h-4 text-emerald-700" />
-                          ऑनलाइन भुगतान (UPI, GPay, PhonePe, Paytm, Cards)
+                          <CreditCard className="w-4 h-4 text-emerald-700 shrink-0" />
+                          <span>ऑनलाइन भुगतान (UPI, GPay, Cards)</span>
                         </span>
-                        <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">
+                        <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full shrink-0">
                           तेज व सुरक्षित
                         </span>
                       </div>
@@ -536,16 +575,16 @@ export default function CheckoutPage() {
                       value="cod"
                       checked={paymentMethod === "cod"}
                       onChange={() => setPaymentMethod("cod")}
-                      className="mt-1 text-emerald-600 focus:ring-emerald-500"
+                      className="mt-1 text-emerald-600 focus:ring-emerald-500 shrink-0"
                     />
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center justify-between gap-1.5">
                         <span className="font-bold text-gray-900 text-sm sm:text-base flex items-center gap-2">
-                          <Banknote className="w-4 h-4 text-emerald-700" />
-                          कैश ऑन डिलीवरी (Cash on Delivery - COD)
+                          <Banknote className="w-4 h-4 text-emerald-700 shrink-0" />
+                          <span>कैश ऑन डिलीवरी (COD)</span>
                         </span>
-                        <span className="text-xs font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full">
-                          पार्सल मिलने पर भुगतान
+                        <span className="text-[11px] font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full shrink-0">
+                          पार्सल मिलने पर
                         </span>
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
