@@ -45,14 +45,14 @@ export const metadata: Metadata = {
     "दाद खाज खुजली",
   ],
   authors: [{ name: "माँ आयुर्वेदिक वेलनेस" }],
-  metadataBase: new URL("https://maaayurvedic.in"),
+  metadataBase: new URL("https://www.maaayurvedic.store"),
   alternates: {
     canonical: "/",
   },
   openGraph: {
     title: "माँ आयुर्वेदिक क्रीम — दाद, खाज, खुजली और सोरायसिस में राहत",
     description: "माँ का ख्याल, प्रकृति का कमाल। 100% शुद्ध आयुर्वेदिक प्राकृतिक फॉर्मूला।",
-    url: "https://maaayurvedic.in",
+    url: "https://www.maaayurvedic.store",
     siteName: "माँ आयुर्वेदिक क्रीम",
     images: [
       {
@@ -65,6 +65,16 @@ export const metadata: Metadata = {
     locale: "hi_IN",
     type: "website",
   },
+  icons: {
+    icon: [
+      { url: "/images/logo.jpeg", type: "image/jpeg" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    apple: [
+      { url: "/images/logo.jpeg", sizes: "180x180", type: "image/jpeg" },
+    ],
+    shortcut: ["/images/logo.jpeg"],
+  },
 };
 
 export default function RootLayout({
@@ -75,7 +85,9 @@ export default function RootLayout({
   return (
     <html lang="hi" className={`${devanagari.variable} ${inter.variable}`}>
       <head>
-        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/images/logo.jpeg" type="image/jpeg" />
+        <link rel="shortcut icon" href="/images/logo.jpeg" type="image/jpeg" />
+        <link rel="apple-touch-icon" href="/images/logo.jpeg" />
       </head>
       <body className="min-h-screen flex flex-col font-sans bg-[#fdfdfd] text-slate-800 antialiased selection:bg-emerald-100 selection:text-emerald-900 w-full max-w-full overflow-x-hidden">
         <AuthProvider>
