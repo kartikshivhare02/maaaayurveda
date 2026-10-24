@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/store/cartStore";
 import { useAuth } from "@/lib/context/AuthContext";
 import { BRAND_INFO } from "@/lib/data/mockData";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import { PaymentMethod, ShippingAddress } from "@/types";
 import {
   ShieldCheck,
@@ -151,6 +152,60 @@ export default function CheckoutPage() {
     }
   };
 
+  // Robust dual-layer order persistence (Server API + Direct Supabase fallback)
+  const persistOrderToDatabase = async (payload: any) => {
+    let saved = false;
+    try {
+      const res = await fetch("/api/orders/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && !json.warning) {
+          saved = true;
+        }
+      }
+    } catch (e) {
+      console.error("API /api/orders/create error:", e);
+    }
+
+    // Direct client fallback to Supabase if server did not save it
+    if (!saved && supabase && isSupabaseConfigured()) {
+      try {
+        const { error } = await supabase.from("orders").insert({
+          order_number: payload.orderNumber,
+          user_id: payload.userId || null,
+          customer_name: payload.customerName,
+          customer_phone: payload.customerPhone,
+          customer_email: payload.customerEmail || null,
+          shipping_address: payload.shippingAddress,
+          items: payload.items,
+          subtotal_paise: payload.subtotalPaise || 0,
+          discount_paise: payload.discountPaise || 0,
+          coupon_code: payload.couponCode || null,
+          shipping_paise: payload.shippingPaise || 0,
+          total_paise: payload.totalPaise || 0,
+          payment_method: payload.paymentMethod || "cod",
+          payment_status: payload.paymentStatus || "pending",
+          fulfillment_status: payload.fulfillmentStatus || "placed",
+          razorpay_order_id: payload.razorpayOrderId || null,
+          razorpay_payment_id: payload.razorpayPaymentId || null,
+          notes: payload.notes || null,
+        });
+        if (!error) {
+          saved = true;
+        } else {
+          console.error("Direct Supabase insert error:", error);
+        }
+      } catch (err) {
+        console.error("Direct Supabase insert exception:", err);
+      }
+    }
+    return saved;
+  };
+
   // Process Order and Payment
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -201,31 +256,23 @@ export default function CheckoutPage() {
 
       if (paymentMethod === "cod") {
         // Cash on delivery: Place directly into Supabase database
-        try {
-          await fetch("/api/orders/create", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              orderNumber,
-              userId: user?.id,
-              customerName: formData.fullName,
-              customerPhone: cleanPhone,
-              customerEmail: normalizedEmail,
-              shippingAddress: { ...formData, email: normalizedEmail },
-              items,
-              subtotalPaise,
-              discountPaise,
-              couponCode: appliedCoupon?.code,
-              shippingPaise,
-              totalPaise: finalTotalPaise,
-              paymentMethod: "cod",
-              paymentStatus: "pending",
-              fulfillmentStatus: "placed",
-            }),
-          });
-        } catch (dbErr) {
-          console.error("Error creating COD order in database:", dbErr);
-        }
+        await persistOrderToDatabase({
+          orderNumber,
+          userId: user?.id,
+          customerName: formData.fullName,
+          customerPhone: cleanPhone,
+          customerEmail: normalizedEmail,
+          shippingAddress: { ...formData, email: normalizedEmail },
+          items,
+          subtotalPaise,
+          discountPaise,
+          couponCode: appliedCoupon?.code,
+          shippingPaise,
+          totalPaise: finalTotalPaise,
+          paymentMethod: "cod",
+          paymentStatus: "pending",
+          fulfillmentStatus: "placed",
+        });
 
         // Save in localStorage for immediate client reactivity
         const existingOrders = JSON.parse(localStorage.getItem("maa_orders") || "[]");
@@ -286,33 +333,25 @@ export default function CheckoutPage() {
             const verifyData = await verifyRes.json();
             if (verifyRes.ok && verifyData.success) {
               // Ensure order is saved in Supabase
-              try {
-                await fetch("/api/orders/create", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    orderNumber,
-                    userId: user?.id,
-                    customerName: formData.fullName,
-                    customerPhone: cleanPhone,
-                    customerEmail: normalizedEmail,
-                    shippingAddress: { ...formData, email: normalizedEmail },
-                    items,
-                    subtotalPaise,
-                    discountPaise,
-                    couponCode: appliedCoupon?.code,
-                    shippingPaise,
-                    totalPaise: finalTotalPaise,
-                    paymentMethod: "razorpay_online",
-                    paymentStatus: "paid",
-                    fulfillmentStatus: "confirmed",
-                    razorpayOrderId: response.razorpay_order_id,
-                    razorpayPaymentId: response.razorpay_payment_id,
-                  }),
-                });
-              } catch (e) {
-                console.error("Order save in database error:", e);
-              }
+              await persistOrderToDatabase({
+                orderNumber,
+                userId: user?.id,
+                customerName: formData.fullName,
+                customerPhone: cleanPhone,
+                customerEmail: normalizedEmail,
+                shippingAddress: { ...formData, email: normalizedEmail },
+                items,
+                subtotalPaise,
+                discountPaise,
+                couponCode: appliedCoupon?.code,
+                shippingPaise,
+                totalPaise: finalTotalPaise,
+                paymentMethod: "razorpay_online",
+                paymentStatus: "paid",
+                fulfillmentStatus: "confirmed",
+                razorpayOrderId: response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+              });
 
               const existingOrders = JSON.parse(localStorage.getItem("maa_orders") || "[]");
               existingOrders.unshift({
@@ -348,36 +387,27 @@ export default function CheckoutPage() {
       } else {
         // Sandbox / Test Flow Simulation
         const mockPaymentId = `pay_mock_${Date.now()}`;
-        const mockSignature = `sig_mock_${Date.now()}`;
 
         // Save order directly to Supabase database
-        try {
-          await fetch("/api/orders/create", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              orderNumber,
-              userId: user?.id,
-              customerName: formData.fullName,
-              customerPhone: cleanPhone,
-              customerEmail: normalizedEmail,
-              shippingAddress: { ...formData, email: normalizedEmail },
-              items,
-              subtotalPaise,
-              discountPaise,
-              couponCode: appliedCoupon?.code,
-              shippingPaise,
-              totalPaise: finalTotalPaise,
-              paymentMethod: "razorpay_online",
-              paymentStatus: "paid",
-              fulfillmentStatus: "confirmed",
-              razorpayOrderId: razorpayOrder.orderId,
-              razorpayPaymentId: mockPaymentId,
-            }),
-          });
-        } catch (e) {
-          console.error("Order save in database error:", e);
-        }
+        await persistOrderToDatabase({
+          orderNumber,
+          userId: user?.id,
+          customerName: formData.fullName,
+          customerPhone: cleanPhone,
+          customerEmail: normalizedEmail,
+          shippingAddress: { ...formData, email: normalizedEmail },
+          items,
+          subtotalPaise,
+          discountPaise,
+          couponCode: appliedCoupon?.code,
+          shippingPaise,
+          totalPaise: finalTotalPaise,
+          paymentMethod: "razorpay_online",
+          paymentStatus: "paid",
+          fulfillmentStatus: "confirmed",
+          razorpayOrderId: razorpayOrder.orderId,
+          razorpayPaymentId: mockPaymentId,
+        });
 
         const existingOrders = JSON.parse(localStorage.getItem("maa_orders") || "[]");
         existingOrders.unshift({

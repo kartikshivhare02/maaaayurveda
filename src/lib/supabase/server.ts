@@ -2,9 +2,17 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  "https://mbwnmzjiqpanovkvbxks.supabase.co";
+
+const supabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1id25temppcXBhbm92a3ZieGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4Mjc3MzYsImV4cCI6MjEwODQwMzczNn0.ooQetoXEbX2UkS_E60p6zrGflF0joeaV16cfUBAWboI";
+
+const supabaseServiceRoleKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1id25temppcXBhbm92a3ZieGtzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MjgyNzczNiwiZXhwIjoyMTA4NDAzNzM2fQ.PzT30qC4jIesMwMT5b0FK_bTBrP4fmSlgpQbQ45koD8";
 
 export const isSupabaseServerConfigured = () =>
   Boolean(supabaseUrl) &&
@@ -44,14 +52,13 @@ export async function createSupabaseServerClient() {
  * (webhook handlers, admin API routes, server actions).
  */
 export const getSupabaseServerAdmin = () => {
-  if (
-    !supabaseUrl ||
-    !supabaseServiceRoleKey ||
-    supabaseUrl.includes("your-project-id")
-  ) {
-    return null;
-  }
-  return createClient(supabaseUrl, supabaseServiceRoleKey, {
+  const url = supabaseUrl || "https://mbwnmzjiqpanovkvbxks.supabase.co";
+  const key =
+    supabaseServiceRoleKey ||
+    supabaseAnonKey ||
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1id25temppcXBhbm92a3ZieGtzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MjgyNzczNiwiZXhwIjoyMTA4NDAzNzM2fQ.PzT30qC4jIesMwMT5b0FK_bTBrP4fmSlgpQbQ45koD8";
+
+  return createClient(url, key, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,

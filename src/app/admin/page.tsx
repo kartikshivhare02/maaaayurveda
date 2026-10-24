@@ -21,8 +21,21 @@ export default function AdminDashboardPage() {
     async function loadAdminOrders() {
       let combinedOrders: Order[] = [];
 
-      // 1. Fetch genuine orders from Supabase if available
-      if (supabase && isSupabaseConfigured()) {
+      // 1. Fetch genuine orders from server API (Supabase Admin)
+      try {
+        const res = await fetch("/api/admin/orders");
+        if (res.ok) {
+          const json = await res.json();
+          if (json.orders && Array.isArray(json.orders)) {
+            combinedOrders = json.orders;
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch admin orders from server API:", err);
+      }
+
+      // 2. Fallback to direct client if server API was empty
+      if (combinedOrders.length === 0 && supabase && isSupabaseConfigured()) {
         try {
           const { data, error } = await supabase
             .from("orders")
@@ -52,7 +65,7 @@ export default function AdminDashboardPage() {
             }));
           }
         } catch {
-          // Supabase not available
+          // Supabase direct fallback
         }
       }
 
