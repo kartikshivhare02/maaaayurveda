@@ -15,6 +15,7 @@ import {
   Printer,
   ChevronDown,
   ShoppingBag,
+  RefreshCw,
 } from "lucide-react";
 
 export default function AdminOrdersPage() {
@@ -22,104 +23,126 @@ export default function AdminOrdersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Form for updating shipping info
   const [editCourier, setEditCourier] = useState("Delhivery");
   const [editTracking, setEditTracking] = useState("");
   const [editStatus, setEditStatus] = useState<FulfillmentStatus>("shipped");
 
-  useEffect(() => {
-    async function loadOrders() {
-      let combined: Order[] = [];
+  const loadOrders = async (showToast = false) => {
+    setIsRefreshing(true);
+    let combined: Order[] = [];
 
-      // 1. Fetch from server API (Supabase Admin)
-      try {
-        const res = await fetch("/api/admin/orders");
-        if (res.ok) {
-          const json = await res.json();
-          if (json.orders && Array.isArray(json.orders)) {
-            combined = json.orders;
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch orders from server API:", err);
-      }
-
-      // 2. Direct Supabase fallback if empty
-      if (combined.length === 0 && supabase && isSupabaseConfigured()) {
-        try {
-          const { data, error } = await supabase
-            .from("orders")
-            .select("*")
-            .order("created_at", { ascending: false });
-
-          if (!error && data && data.length > 0) {
-            combined = data.map((d: any) => ({
-              id: d.id,
-              orderNumber: d.order_number,
-              customerName: d.customer_name,
-              customerPhone: d.customer_phone,
-              customerEmail: d.customer_email,
-              shippingAddress: d.shipping_address,
-              items: d.items || [],
-              subtotalPaise: d.subtotal_paise || 0,
-              discountPaise: d.discount_paise || 0,
-              shippingPaise: d.shipping_paise || 0,
-              totalPaise: d.total_paise || 0,
-              paymentMethod: d.payment_method || "cod",
-              paymentStatus: d.payment_status || "pending",
-              fulfillmentStatus: d.fulfillment_status || "confirmed",
-              courierName: d.courier_name,
-              trackingNumber: d.tracking_number,
-              createdAt: d.created_at || new Date().toISOString(),
-              updatedAt: d.updated_at || d.created_at || new Date().toISOString(),
-            }));
-          }
-        } catch {
-          // ignore
+    // 1. Fetch from server API (Supabase Admin)
+    try {
+      const res = await fetch("/api/admin/orders", { cache: "no-store" });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.orders && Array.isArray(json.orders)) {
+          combined = json.orders;
         }
       }
+    } catch (err) {
+      console.error("Failed to fetch orders from server API:", err);
+    }
 
-      // 3. LocalStorage merge without mock orders
+    // 2. Direct Supabase fallback if empty
+    if (combined.length === 0 && supabase && isSupabaseConfigured()) {
       try {
-        const saved: Order[] = JSON.parse(localStorage.getItem("maa_orders") || "[]");
-        const isMockOrder = (o: Order) =>
-          o.id === "ord-1" ||
-          o.id === "ord-2" ||
-          o.id === "ord-3" ||
-          o.orderNumber === "MAA-882109" ||
-          o.orderNumber === "MAA-882110" ||
-          o.orderNumber === "MAA-882111" ||
-          o.customerName === "राजेश कुमार शर्मा" ||
-          o.customerName === "सुनीता देवी" ||
-          o.customerName === "सुरेश पाटिल";
+        const { data, error } = await supabase
+          .from("orders")
+          .select("*")
+          .order("created_at", { ascending: false });
 
-        const realSaved = saved.filter((o) => !isMockOrder(o));
-        if (realSaved.length !== saved.length) {
-          localStorage.setItem("maa_orders", JSON.stringify(realSaved));
-        }
-
-        const existingNumbers = new Set(combined.map((o) => o.orderNumber));
-        for (const o of realSaved) {
-          if (!existingNumbers.has(o.orderNumber)) {
-            combined.push(o);
-            existingNumbers.add(o.orderNumber);
-          }
+        if (!error && data && data.length > 0) {
+          combined = data.map((d: any) => ({
+            id: d.id,
+            orderNumber: d.order_number,
+            customerName: d.customer_name,
+            customerPhone: d.customer_phone,
+            customerEmail: d.customer_email,
+            shippingAddress: d.shipping_address,
+            items: d.items || [],
+            subtotalPaise: d.subtotal_paise || 0,
+            discountPaise: d.discount_paise || 0,
+            shippingPaise: d.shipping_paise || 0,
+            totalPaise: d.total_paise || 0,
+            paymentMethod: d.payment_method || "cod",
+            paymentStatus: d.payment_status || "pending",
+            fulfillmentStatus: d.fulfillment_status || "placed",
+            courierName: d.courier_name,
+            trackingNumber: d.tracking_number,
+            createdAt: d.created_at || new Date().toISOString(),
+            updatedAt: d.updated_at || d.created_at || new Date().toISOString(),
+          }));
         }
       } catch {
         // ignore
       }
-
-      setOrders(combined);
-      if (combined.length > 0) {
-        setSelectedOrder(combined[0]);
-        setEditStatus(combined[0].fulfillmentStatus);
-        setEditCourier(combined[0].courierName || "Delhivery");
-        setEditTracking(combined[0].trackingNumber || "");
-      }
     }
 
+    // 3. LocalStorage merge without mock orders
+    try {
+      const saved: Order[] = JSON.parse(localStorage.getItem("maa_orders") || "[]");
+      const isMockOrder = (o: Order) =>
+        o.id === "ord-1" ||
+        o.id === "ord-2" ||
+        o.id === "ord-3" ||
+        o.orderNumber === "MAA-882109" ||
+        o.orderNumber === "MAA-882110" ||
+        o.orderNumber === "MAA-882111" ||
+        o.customerName === "राजेश कुमार शर्मा" ||
+        o.customerName === "सुनीता देवी" ||
+        o.customerName === "सुरेश पाटिल";
+
+      const realSaved = saved.filter((o) => !isMockOrder(o));
+      if (realSaved.length !== saved.length) {
+        localStorage.setItem("maa_orders", JSON.stringify(realSaved));
+      }
+
+      const existingNumbers = new Set(combined.map((o) => o.orderNumber));
+      for (const o of realSaved) {
+        if (!existingNumbers.has(o.orderNumber)) {
+          combined.push(o);
+          existingNumbers.add(o.orderNumber);
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    setOrders(combined);
+    setSelectedOrder((curr) => {
+      if (curr) {
+        const found = combined.find((o) => o.orderNumber === curr.orderNumber);
+        return found || (combined.length > 0 ? combined[0] : null);
+      }
+      return combined.length > 0 ? combined[0] : null;
+    });
+
+    setIsRefreshing(false);
+    if (showToast) {
+      triggerAdminSuccess(`डेटाबेस से ${combined.length} ऑर्डर लोड किए गए!`);
+    }
+  };
+
+  useEffect(() => {
     loadOrders();
+
+    // Auto-poll orders every 8 seconds
+    const interval = setInterval(() => {
+      loadOrders();
+    }, 8000);
+
+    // Refresh when user focuses the tab
+    const handleFocus = () => loadOrders();
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, []);
 
   const handleSelectOrder = (o: Order) => {
@@ -219,12 +242,23 @@ export default function AdminOrdersPage() {
             className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs sm:text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
           >
             <option value="all">सभी ऑर्डर (All)</option>
+            <option value="placed">नया ऑर्डर (Placed / New)</option>
             <option value="confirmed">Confirmed (स्वीकृत)</option>
             <option value="shipped">Shipped (डिस्पैच)</option>
             <option value="in_transit">In Transit (रास्ते में)</option>
             <option value="delivered">Delivered (डिलीवर)</option>
             <option value="cancelled">Cancelled (रद्द)</option>
           </select>
+
+          <button
+            onClick={() => loadOrders(true)}
+            disabled={isRefreshing}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold rounded-xl transition-colors disabled:opacity-50"
+            title="डेटाबेस से ताज़ा ऑर्डर प्राप्त करें"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin text-emerald-600" : ""}`} />
+            <span className="hidden sm:inline">{isRefreshing ? "रिफ्रेश..." : "ताज़ा करें (Refresh)"}</span>
+          </button>
         </div>
       </div>
 

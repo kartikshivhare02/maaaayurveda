@@ -12,105 +12,131 @@ import {
   AlertCircle,
   ArrowRight,
   ShoppingBag,
+  RefreshCw,
 } from "lucide-react";
+import { triggerAdminSuccess } from "@/lib/context/AdminToastContext";
 
 export default function AdminDashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  useEffect(() => {
-    async function loadAdminOrders() {
-      let combinedOrders: Order[] = [];
+  const loadAdminOrders = async (showToast = false) => {
+    setIsRefreshing(true);
+    let combinedOrders: Order[] = [];
 
-      // 1. Fetch genuine orders from server API (Supabase Admin)
-      try {
-        const res = await fetch("/api/admin/orders");
-        if (res.ok) {
-          const json = await res.json();
-          if (json.orders && Array.isArray(json.orders)) {
-            combinedOrders = json.orders;
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch admin orders from server API:", err);
-      }
-
-      // 2. Fallback to direct client if server API was empty
-      if (combinedOrders.length === 0 && supabase && isSupabaseConfigured()) {
-        try {
-          const { data, error } = await supabase
-            .from("orders")
-            .select("*")
-            .order("created_at", { ascending: false });
-
-          if (!error && data && data.length > 0) {
-            combinedOrders = data.map((d: any) => ({
-              id: d.id,
-              orderNumber: d.order_number,
-              customerName: d.customer_name,
-              customerPhone: d.customer_phone,
-              customerEmail: d.customer_email,
-              shippingAddress: d.shipping_address,
-              items: d.items || [],
-              subtotalPaise: d.subtotal_paise || 0,
-              discountPaise: d.discount_paise || 0,
-              shippingPaise: d.shipping_paise || 0,
-              totalPaise: d.total_paise || 0,
-              paymentMethod: d.payment_method || "cod",
-              paymentStatus: d.payment_status || "pending",
-              fulfillmentStatus: d.fulfillment_status || "confirmed",
-              courierName: d.courier_name,
-              trackingNumber: d.tracking_number,
-              createdAt: d.created_at || new Date().toISOString(),
-              updatedAt: d.updated_at || d.created_at || new Date().toISOString(),
-            }));
-          }
-        } catch {
-          // Supabase direct fallback
+    // 1. Fetch genuine orders from server API (Supabase Admin)
+    try {
+      const res = await fetch("/api/admin/orders", { cache: "no-store" });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.orders && Array.isArray(json.orders)) {
+          combinedOrders = json.orders;
         }
       }
-
-      // 2. Fetch local orders and purge any legacy mock orders
-      try {
-        const saved: Order[] = JSON.parse(localStorage.getItem("maa_orders") || "[]");
-        const isMockOrder = (o: Order) =>
-          o.id === "ord-1" ||
-          o.id === "ord-2" ||
-          o.id === "ord-3" ||
-          o.orderNumber === "MAA-882109" ||
-          o.orderNumber === "MAA-882110" ||
-          o.orderNumber === "MAA-882111" ||
-          o.customerName === "राजेश कुमार शर्मा" ||
-          o.customerName === "सुनीता देवी" ||
-          o.customerName === "सुरेश पाटिल";
-
-        const realLocal = saved.filter((o) => !isMockOrder(o));
-        if (realLocal.length !== saved.length) {
-          localStorage.setItem("maa_orders", JSON.stringify(realLocal));
-        }
-
-        const existingNumbers = new Set(combinedOrders.map((o) => o.orderNumber));
-        for (const o of realLocal) {
-          if (!existingNumbers.has(o.orderNumber)) {
-            combinedOrders.push(o);
-            existingNumbers.add(o.orderNumber);
-          }
-        }
-      } catch {
-        // ignore
-      }
-
-      setOrders(combinedOrders);
+    } catch (err) {
+      console.error("Failed to fetch admin orders from server API:", err);
     }
 
+    // 2. Fallback to direct client if server API was empty
+    if (combinedOrders.length === 0 && supabase && isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase
+          .from("orders")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (!error && data && data.length > 0) {
+          combinedOrders = data.map((d: any) => ({
+            id: d.id,
+            orderNumber: d.order_number,
+            customerName: d.customer_name,
+            customerPhone: d.customer_phone,
+            customerEmail: d.customer_email,
+            shippingAddress: d.shipping_address,
+            items: d.items || [],
+            subtotalPaise: d.subtotal_paise || 0,
+            discountPaise: d.discount_paise || 0,
+            shippingPaise: d.shipping_paise || 0,
+            totalPaise: d.total_paise || 0,
+            paymentMethod: d.payment_method || "cod",
+            paymentStatus: d.payment_status || "pending",
+            fulfillmentStatus: d.fulfillment_status || "placed",
+            courierName: d.courier_name,
+            trackingNumber: d.tracking_number,
+            createdAt: d.created_at || new Date().toISOString(),
+            updatedAt: d.updated_at || d.created_at || new Date().toISOString(),
+          }));
+        }
+      } catch {
+        // Supabase direct fallback
+      }
+    }
+
+    // 3. Fetch local orders and purge any legacy mock orders
+    try {
+      const saved: Order[] = JSON.parse(localStorage.getItem("maa_orders") || "[]");
+      const isMockOrder = (o: Order) =>
+        o.id === "ord-1" ||
+        o.id === "ord-2" ||
+        o.id === "ord-3" ||
+        o.orderNumber === "MAA-882109" ||
+        o.orderNumber === "MAA-882110" ||
+        o.orderNumber === "MAA-882111" ||
+        o.customerName === "राजेश कुमार शर्मा" ||
+        o.customerName === "सुनीता देवी" ||
+        o.customerName === "सुरेश पाटिल";
+
+      const realLocal = saved.filter((o) => !isMockOrder(o));
+      if (realLocal.length !== saved.length) {
+        localStorage.setItem("maa_orders", JSON.stringify(realLocal));
+      }
+
+      const existingNumbers = new Set(combinedOrders.map((o) => o.orderNumber));
+      for (const o of realLocal) {
+        if (!existingNumbers.has(o.orderNumber)) {
+          combinedOrders.push(o);
+          existingNumbers.add(o.orderNumber);
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    setOrders(combinedOrders);
+    setIsRefreshing(false);
+    if (showToast) {
+      triggerAdminSuccess(`डेटाबेस से ${combinedOrders.length} ऑर्डर लोड किए गए!`);
+    }
+  };
+
+  useEffect(() => {
     loadAdminOrders();
+
+    // Auto-poll every 8 seconds
+    const interval = setInterval(() => {
+      loadAdminOrders();
+    }, 8000);
+
+    // Refresh when admin returns to tab
+    const handleFocus = () => loadAdminOrders();
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, []);
 
-  const totalRevenuePaise = orders
+  const totalOrdersValuePaise = orders.reduce((acc, o) => acc + (o.totalPaise || 0), 0);
+  const totalPaidPaise = orders
     .filter((o) => o.paymentStatus === "paid")
-    .reduce((acc, o) => acc + o.totalPaise, 0);
+    .reduce((acc, o) => acc + (o.totalPaise || 0), 0);
+  const totalCodPaise = orders
+    .filter((o) => o.paymentStatus !== "paid")
+    .reduce((acc, o) => acc + (o.totalPaise || 0), 0);
 
   const paidOrdersCount = orders.filter((o) => o.paymentStatus === "paid").length;
-  const pendingOrdersCount = orders.filter((o) => o.paymentStatus === "pending").length;
+  const pendingOrdersCount = orders.filter((o) => o.paymentStatus !== "paid").length;
 
   return (
     <div className="space-y-8">
@@ -125,11 +151,19 @@ export default function AdminDashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => loadAdminOrders(true)}
+            disabled={isRefreshing}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-gray-50 text-emerald-800 border border-gray-300 text-xs font-bold rounded-xl transition-colors shadow-xs disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin text-emerald-600" : ""}`} />
+            <span>{isRefreshing ? "रिफ्रेश..." : "ताज़ा करें (Refresh)"}</span>
+          </button>
           <Link
             href="/admin/orders"
             className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors shadow-xs"
           >
-            सभी ऑर्डर्स देखें
+            सभी ऑर्डर्स देखें ({orders.length})
           </Link>
           <Link
             href="/admin/seo"
@@ -142,39 +176,38 @@ export default function AdminDashboardPage() {
 
       {/* 4 Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* Total Revenue */}
+        {/* Total Orders Value */}
         <div className="bg-white rounded-3xl p-6 border border-gray-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between text-xs font-bold text-gray-500 uppercase">
-            <span>सत्यापित कुल आय</span>
+            <span>कुल ऑर्डर मूल्य</span>
             <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
               ₹
             </div>
           </div>
           <div className="text-2xl sm:text-3xl font-black text-gray-900">
-            ₹{(totalRevenuePaise / 100).toLocaleString("en-IN")}
+            ₹{(totalOrdersValuePaise / 100).toLocaleString("en-IN")}
           </div>
-          <p className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
-            <TrendingUp className="w-3.5 h-3.5" />
-            सत्यापित ऑनलाइन भुगतान से
+          <p className="text-xs text-gray-500">
+            ₹{(totalPaidPaise / 100).toLocaleString("en-IN")} ऑनलाइन • ₹{(totalCodPaise / 100).toLocaleString("en-IN")} COD
           </p>
         </div>
 
-        {/* Paid Orders */}
+        {/* Total Orders Received */}
         <div className="bg-white rounded-3xl p-6 border border-gray-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between text-xs font-bold text-gray-500 uppercase">
-            <span>सत्यापित भुगतान ऑर्डर</span>
+            <span>कुल प्राप्त ऑर्डर</span>
             <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center">
-              <CheckCircle className="w-4 h-4" />
+              <ShoppingBag className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-gray-900">{paidOrdersCount}</div>
-          <p className="text-xs text-gray-500">कुल ऑर्डर: {orders.length}</p>
+          <div className="text-2xl sm:text-3xl font-black text-gray-900">{orders.length}</div>
+          <p className="text-xs text-blue-600 font-semibold">स्टोरफ्रंट से प्राप्त कुल ऑर्डर</p>
         </div>
 
-        {/* Pending COD */}
+        {/* Pending COD Orders */}
         <div className="bg-white rounded-3xl p-6 border border-gray-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between text-xs font-bold text-gray-500 uppercase">
-            <span>लंबित COD भुगतान</span>
+            <span>लंबित COD ऑर्डर</span>
             <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center">
               <AlertCircle className="w-4 h-4" />
             </div>
@@ -185,18 +218,18 @@ export default function AdminDashboardPage() {
           <p className="text-xs text-gray-500">डिलीवरी पर वसूली योग्य</p>
         </div>
 
-        {/* Stock Status */}
+        {/* Paid Online Orders */}
         <div className="bg-white rounded-3xl p-6 border border-gray-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between text-xs font-bold text-gray-500 uppercase">
-            <span>उपलब्ध स्टॉक (Units)</span>
-            <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-800 flex items-center justify-center">
-              <Package className="w-4 h-4" />
+            <span>सत्यापित ऑनलाइन भुगतान</span>
+            <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center">
+              <CheckCircle className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-gray-900">
-            {MAIN_PRODUCT.stockCount}
+          <div className="text-2xl sm:text-3xl font-black text-emerald-700">
+            {paidOrdersCount}
           </div>
-          <p className="text-xs text-emerald-600 font-semibold">पर्याप्त स्टॉक उपलब्ध</p>
+          <p className="text-xs text-emerald-600 font-semibold">तुरंत डिस्पैच हेतु तैयार</p>
         </div>
       </div>
 
