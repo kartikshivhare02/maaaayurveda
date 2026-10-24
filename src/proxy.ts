@@ -78,7 +78,8 @@ export async function proxy(request: NextRequest) {
         profile?.role === "admin" ||
         user.email?.toLowerCase().includes("admin") ||
         user.email?.toLowerCase() === "support@maaayurvedic.in" ||
-        user.email?.toLowerCase() === "kartikshivhare02@gmail.com"
+        user.email?.toLowerCase() === "kartikshivhare02@gmail.com" ||
+        user.email?.toLowerCase() === "shivhares747@gmail.com"
       ) {
         isAdminUser = true;
       }
@@ -86,7 +87,8 @@ export async function proxy(request: NextRequest) {
       if (
         user.email?.toLowerCase().includes("admin") ||
         user.email?.toLowerCase() === "support@maaayurvedic.in" ||
-        user.email?.toLowerCase() === "kartikshivhare02@gmail.com"
+        user.email?.toLowerCase() === "kartikshivhare02@gmail.com" ||
+        user.email?.toLowerCase() === "shivhares747@gmail.com"
       ) {
         isAdminUser = true;
       }

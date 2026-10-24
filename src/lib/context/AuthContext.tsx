@@ -17,6 +17,7 @@ export const AUTHORIZED_ADMIN_EMAILS = [
   "admin@maaayurvedic.in",
   "support@maaayurvedic.in",
   "kartikshivhare02@gmail.com",
+  "shivhares747@gmail.com",
 ];
 
 export const isUserAdmin = (

@@ -239,6 +239,10 @@ ALTER TABLE admin_audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE story_testimonials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE site_settings ENABLE ROW LEVEL SECURITY;
 
+-- Profiles: Users can read and update their own profile
+CREATE POLICY "Users can read own profile" ON profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
+
 -- Products & Bundles: Anyone can view active products
 CREATE POLICY "Public read products" ON products FOR SELECT USING (true);
 CREATE POLICY "Public read bundles" ON bundles FOR SELECT USING (active = true);
