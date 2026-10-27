@@ -10,26 +10,51 @@ interface HeroProductGalleryProps {
 }
 
 export const HeroProductGallery: React.FC<HeroProductGalleryProps> = ({ initialImages }) => {
-  const { product, slidingImages } = useProductStore();
+  const { product, images, slidingImages, updateImages } = useProductStore();
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [isZoomed, setIsZoomed] = useState(false);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
-  // Use slidingImages from store, or initialImages from server, or fallback
-  const activeImages = slidingImages.length > 0
-    ? slidingImages
-    : (initialImages && initialImages.length > 0)
-    ? initialImages
-    : [
-    {
-      id: "default-1",
-      url: "/images/product.jpeg",
-      label: "मुख्य क्रीम जार (50g)",
-      subtitle: "प्राथमिक उत्पाद फोटो",
-      isPrimary: true,
-      type: "primary" as const,
-    },
-  ];
+  // Sync initialImages into store if store currently only has default mock images
+  useEffect(() => {
+    if (initialImages && initialImages.length > 0) {
+      const storeHasCustom = images.some(
+        (img) => !img.url.startsWith("/images/") || img.url.startsWith("data:")
+      );
+      const initialHasCustom = initialImages.some(
+        (img) => !img.url.startsWith("/images/") || img.url.startsWith("data:")
+      );
+      if (!storeHasCustom && initialHasCustom) {
+        updateImages(initialImages);
+      }
+    }
+  }, [initialImages, images, updateImages]);
+
+  // Determine active images:
+  // If initialImages has custom uploaded images and slidingImages is still default mock, use initialImages
+  const isDefaultList = (list: ProductImageItem[]) =>
+    list.every((img) => img.url.startsWith("/images/") && !img.url.startsWith("data:"));
+
+  let activeImages = slidingImages;
+  if (initialImages && initialImages.length > 0) {
+    if (isDefaultList(slidingImages) && !isDefaultList(initialImages)) {
+      activeImages = initialImages;
+    } else if (slidingImages.length === 0) {
+      activeImages = initialImages;
+    }
+  }
+  if (!activeImages || activeImages.length === 0) {
+    activeImages = initialImages && initialImages.length > 0 ? initialImages : [
+      {
+        id: "default-1",
+        url: "/images/product.jpeg",
+        label: "मुख्य क्रीम जार (50g)",
+        subtitle: "प्राथमिक उत्पाद फोटो",
+        isPrimary: true,
+        type: "primary" as const,
+      },
+    ];
+  }
 
   // Keep index within bounds
   useEffect(() => {
@@ -84,6 +109,7 @@ export const HeroProductGallery: React.FC<HeroProductGalleryProps> = ({ initialI
           sizes="(max-width: 1024px) 100vw, 45vw"
           className="object-cover transition-all duration-500 group-hover:scale-105 animate-in fade-in zoom-in-95"
           priority
+          unoptimized
         />
 
         {/* Floating Top Left Badge: Primary / Secondary Tag */}
@@ -172,6 +198,7 @@ export const HeroProductGallery: React.FC<HeroProductGalleryProps> = ({ initialI
                   fill
                   sizes="120px"
                   className="object-cover"
+                  unoptimized
                 />
                 {item.isPrimary && (
                   <span className="absolute top-1 left-1 bg-emerald-700 text-white text-[8px] font-black px-1 rounded shadow-2xs">
@@ -212,6 +239,7 @@ export const HeroProductGallery: React.FC<HeroProductGalleryProps> = ({ initialI
                 fill
                 sizes="800px"
                 className="object-contain"
+                unoptimized
               />
             </div>
 

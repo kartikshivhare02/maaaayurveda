@@ -15,7 +15,7 @@ export async function GET() {
       .from("story_testimonials")
       .select("*")
       .eq("is_active", true)
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: false });
 
     if (error || !data || data.length === 0) {
       console.warn("Stories fetch from Supabase empty, returning fallback:", error?.message);

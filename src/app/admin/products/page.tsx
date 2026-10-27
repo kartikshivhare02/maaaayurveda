@@ -22,6 +22,7 @@ import {
   Info,
 } from "lucide-react";
 import { triggerAdminSuccess } from "@/lib/context/AdminToastContext";
+import { compressImageFile } from "@/lib/utils/imageCompressor";
 
 export default function AdminProductsPage() {
   const {
@@ -29,6 +30,7 @@ export default function AdminProductsPage() {
     images,
     slidingImages,
     updateProduct,
+    updateImages,
     setPrimaryImage,
     addImage,
     removeImage,
@@ -74,7 +76,7 @@ export default function AdminProductsPage() {
 
   // State for Add Image Modal / Form
   const [isAddImageOpen, setIsAddImageOpen] = useState(false);
-  const [newImageUrl, setNewImageUrl] = useState("/images/product.jpeg");
+  const [newImageUrl, setNewImageUrl] = useState("");
   const [newImageLabel, setNewImageLabel] = useState("");
   const [newImageSubtitle, setNewImageSubtitle] = useState("");
   const [newImageIsPrimary, setNewImageIsPrimary] = useState(false);
@@ -137,22 +139,36 @@ export default function AdminProductsPage() {
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === "string") {
-          setNewImageUrl(reader.result);
+      try {
+        const compressed = await compressImageFile(file, 1200, 1200, 0.85);
+        setNewImageUrl(compressed);
+        if (!newImageLabel.trim()) {
+          setNewImageLabel(`उत्पाद फोटो ${images.length + 1}`);
         }
-      };
-      reader.readAsDataURL(file);
+      } catch {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (typeof reader.result === "string") {
+            setNewImageUrl(reader.result);
+            if (!newImageLabel.trim()) {
+              setNewImageLabel(`उत्पाद फोटो ${images.length + 1}`);
+            }
+          }
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
   const handleCreateImage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newImageUrl.trim()) return;
+    if (!newImageUrl.trim()) {
+      alert("कृपया एक इमेज फाइल चुनें या फोटो URL दर्ज करें।");
+      return;
+    }
 
     addImage({
       url: newImageUrl.trim(),
@@ -163,10 +179,27 @@ export default function AdminProductsPage() {
     });
 
     setIsAddImageOpen(false);
+    setNewImageUrl("");
     setNewImageLabel("");
     setNewImageSubtitle("");
     setNewImageIsPrimary(false);
-    showToast("नयी फोटो सफलतापूर्वक जोड़ी गई!");
+    showToast("नयी फोटो सफलतापूर्वक जोड़ी गई और डेटाबेस में सुरक्षित हो गई!");
+  };
+
+  const handleRemoveSampleImages = () => {
+    const nonSample = images.filter(
+      (img) => !img.url.startsWith("/images/") || img.url.startsWith("data:")
+    );
+    if (nonSample.length === 0) {
+      alert("कृपया पहले अपनी कम से कम एक असली उत्पाद फोटो अपलोड करें, उसके बाद डिफ़ॉल्ट सैंपल फोटो हटाएं।");
+      return;
+    }
+    if (confirm("क्या आप पुरानी सभी डिफ़ॉल्ट सैंपल फोटो हटाकर केवल अपनी अपलोड की गई फोटो रखना चाहते हैं?")) {
+      nonSample[0].isPrimary = true;
+      nonSample[0].type = "primary";
+      updateImages(nonSample);
+      showToast("सभी पुरानी सैंपल फोटो हटा दी गईं! अब केवल आपकी अपलोड फोटो वेबसाइट पर लाइव हैं।");
+    }
   };
 
   const handleIngredientChange = (
@@ -513,7 +546,19 @@ export default function AdminProductsPage() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2.5">
+              {images.some((img) => img.url.startsWith("/images/") && !img.url.startsWith("data:")) && (
+                <button
+                  type="button"
+                  onClick={handleRemoveSampleImages}
+                  className="inline-flex items-center gap-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300/80 font-bold text-xs sm:text-sm px-3.5 py-2.5 rounded-xl shadow-2xs transition-colors"
+                  title="सभी पुरानी डिफ़ॉल्ट सैंपल फोटो हटाएं ताकि केवल आपकी अपलोड की गई फोटो दिखें"
+                >
+                  <Trash2 className="w-4 h-4 text-amber-700" />
+                  <span>डिफ़ॉल्ट सैंपल फोटो हटाएं (Clear Samples)</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={handleSaveImagesToDb}
@@ -527,7 +572,13 @@ export default function AdminProductsPage() {
 
               <button
                 type="button"
-                onClick={() => setIsAddImageOpen(true)}
+                onClick={() => {
+                  setNewImageUrl("");
+                  setNewImageLabel("");
+                  setNewImageSubtitle("");
+                  setNewImageIsPrimary(false);
+                  setIsAddImageOpen(true);
+                }}
                 className="inline-flex items-center gap-2 bg-[#0b3d2e] hover:bg-[#07281e] text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-xs transition-colors"
               >
                 <Plus className="w-4 h-4" />
@@ -560,6 +611,7 @@ export default function AdminProductsPage() {
                     fill
                     sizes="176px"
                     className="object-cover"
+                    unoptimized
                   />
                 )}
                 {slidingImages[previewIdx]?.isPrimary ? (
@@ -635,6 +687,7 @@ export default function AdminProductsPage() {
                         fill
                         sizes="80px"
                         className="object-cover"
+                        unoptimized
                       />
                     </div>
 
@@ -775,30 +828,47 @@ export default function AdminProductsPage() {
                 </div>
               </div>
 
-              {/* Or enter custom URL */}
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">
-                  फोटो का URL (Image URL) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="/images/product.jpeg अथवा https://..."
-                  value={newImageUrl}
-                  onChange={(e) => setNewImageUrl(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-xs"
-                />
-              </div>
+              {/* Live Preview of Chosen/Uploaded Image */}
+              {newImageUrl ? (
+                <div className="flex items-center gap-3 p-3 bg-emerald-50/70 border border-emerald-300 rounded-2xl">
+                  <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-emerald-500 bg-white shrink-0">
+                    <Image
+                      src={newImageUrl}
+                      alt="Uploaded preview"
+                      fill
+                      sizes="64px"
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-emerald-950 flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                      फोटो लोड हो गई (Image Ready)
+                    </p>
+                    <p className="text-[11px] text-emerald-800/80 truncate font-mono mt-0.5">
+                      {newImageUrl.startsWith("data:") ? "डिवाइस से अपलोड की गई (Compressed)" : newImageUrl}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setNewImageUrl("")}
+                      className="text-[10px] text-red-600 font-semibold hover:underline mt-1"
+                    >
+                      हटाएं व दूसरी चुनें (Clear)
+                    </button>
+                  </div>
+                </div>
+              ) : null}
 
-              {/* Or Upload file directly */}
+              {/* Upload file directly */}
               <div>
                 <label className="block font-semibold text-gray-700 mb-1">
-                  अथवा डिवाइस से फोटो अपलोड करें (Upload File)
+                  डिवाइस से फोटो अपलोड करें (Upload from Device) *
                 </label>
                 <div className="flex items-center gap-2">
-                  <label className="flex-1 flex items-center justify-center gap-2 p-3 border-2 border-dashed border-gray-300 hover:border-emerald-500 rounded-xl cursor-pointer bg-gray-50 hover:bg-emerald-50/40 text-gray-600 hover:text-emerald-800 text-xs font-semibold transition-all">
-                    <Upload className="w-4 h-4" />
-                    <span>इमेज फाइल चुनें (JPG, PNG, WebP)</span>
+                  <label className="flex-1 flex items-center justify-center gap-2 p-3.5 border-2 border-dashed border-gray-300 hover:border-emerald-600 rounded-xl cursor-pointer bg-gray-50 hover:bg-emerald-50/50 text-gray-700 hover:text-emerald-900 text-xs font-bold transition-all shadow-2xs">
+                    <Upload className="w-4 h-4 text-emerald-700" />
+                    <span>गैलरी / फाइल से फोटो चुनें (JPG, PNG, WebP)</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -807,6 +877,20 @@ export default function AdminProductsPage() {
                     />
                   </label>
                 </div>
+              </div>
+
+              {/* Or enter custom URL */}
+              <div>
+                <label className="block font-semibold text-gray-700 mb-1">
+                  अथवा ऑनलाइन फोटो URL दर्ज करें (Image URL)
+                </label>
+                <input
+                  type="text"
+                  placeholder="https://... अथवा /images/..."
+                  value={newImageUrl.startsWith("data:") ? "" : newImageUrl}
+                  onChange={(e) => setNewImageUrl(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-xs"
+                />
               </div>
 
               {/* Label & Subtitle */}

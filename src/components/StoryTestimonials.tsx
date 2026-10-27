@@ -244,11 +244,12 @@ export const StoryTestimonials: React.FC<StoryTestimonialsProps> = ({ initialSto
                 <div className="p-0.5 bg-white rounded-full">
                   <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-gray-100">
                     <Image
-                      src={story.afterImageUrl}
+                      src={story.afterImageUrl || story.beforeImageUrl || "/images/stories/daad_after.jpg"}
                       alt={story.customerName}
                       fill
                       sizes="80px"
                       className="object-cover"
+                      unoptimized
                     />
                   </div>
                 </div>
@@ -280,11 +281,12 @@ export const StoryTestimonials: React.FC<StoryTestimonialsProps> = ({ initialSto
                 <div className="grid grid-cols-2 h-full w-full">
                   <div className="relative h-full w-full border-r border-white/80">
                     <Image
-                      src={story.beforeImageUrl}
+                      src={story.beforeImageUrl || "/images/stories/daad_before.jpg"}
                       alt="Before"
                       fill
                       sizes="200px"
                       className="object-cover"
+                      unoptimized
                     />
                     <span className="absolute bottom-1.5 left-1.5 bg-black/70 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
                       पहले
@@ -292,11 +294,12 @@ export const StoryTestimonials: React.FC<StoryTestimonialsProps> = ({ initialSto
                   </div>
                   <div className="relative h-full w-full">
                     <Image
-                      src={story.afterImageUrl}
+                      src={story.afterImageUrl || "/images/stories/daad_after.jpg"}
                       alt="After"
                       fill
                       sizes="200px"
                       className="object-cover"
+                      unoptimized
                     />
                     <span className="absolute bottom-1.5 right-1.5 bg-emerald-700 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
                       बाद में
@@ -376,11 +379,12 @@ export const StoryTestimonials: React.FC<StoryTestimonialsProps> = ({ initialSto
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-full overflow-hidden border border-emerald-400 bg-white relative">
                   <Image
-                    src={currentStory.afterImageUrl}
+                    src={currentStory.afterImageUrl || currentStory.beforeImageUrl || "/images/stories/daad_after.jpg"}
                     alt={currentStory.customerName}
                     fill
                     sizes="36px"
                     className="object-cover"
+                    unoptimized
                   />
                 </div>
                 <div>
@@ -422,14 +426,15 @@ export const StoryTestimonials: React.FC<StoryTestimonialsProps> = ({ initialSto
                 <Image
                   src={
                     viewMode === "after"
-                      ? currentStory.afterImageUrl
-                      : currentStory.beforeImageUrl
+                      ? currentStory.afterImageUrl || "/images/stories/daad_after.jpg"
+                      : currentStory.beforeImageUrl || "/images/stories/daad_before.jpg"
                   }
                   alt={viewMode === "after" ? "After recovery" : "Before treatment"}
                   fill
                   sizes="500px"
                   className="object-contain"
                   priority
+                  unoptimized
                 />
               )}
 

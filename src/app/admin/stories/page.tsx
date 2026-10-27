@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { triggerAdminSuccess } from "@/lib/context/AdminToastContext";
+import { compressImageFile } from "@/lib/utils/imageCompressor";
 
 export default function AdminStoriesPage() {
   const [stories, setStories] = useState<StoryTestimonial[]>([]);
@@ -33,8 +34,8 @@ export default function AdminStoriesPage() {
     concern: "दाद (Ringworm)",
     duration: "14 दिन का कोर्स",
     rating: 5,
-    beforeImageUrl: "/images/stories/daad_before.jpg",
-    afterImageUrl: "/images/stories/daad_after.jpg",
+    beforeImageUrl: "",
+    afterImageUrl: "",
     videoUrl: "",
     storyHindi: "",
     isVerified: true,
@@ -146,8 +147,8 @@ export default function AdminStoriesPage() {
       concern: "दाद (Ringworm)",
       duration: "14 दिन का कोर्स",
       rating: 5,
-      beforeImageUrl: "/images/stories/daad_before.jpg",
-      afterImageUrl: "/images/stories/daad_after.jpg",
+      beforeImageUrl: "",
+      afterImageUrl: "",
       videoUrl: "",
       storyHindi: "",
       isVerified: true,
@@ -174,20 +175,36 @@ export default function AdminStoriesPage() {
     setIsModalOpen(true);
   };
 
-  // File Upload Handlers (Photos & Video Clips)
-  const handleFileUpload = (
+  // File Upload Handlers with Automatic Client Compression
+  const handleFileUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
     field: "beforeImageUrl" | "afterImageUrl" | "videoUrl"
   ) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === "string") {
-          setFormData((prev) => ({ ...prev, [field]: reader.result as string }));
+      if (file.type.startsWith("image/")) {
+        try {
+          const compressed = await compressImageFile(file, 1200, 1200, 0.85);
+          setFormData((prev) => ({ ...prev, [field]: compressed }));
+        } catch {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            if (typeof reader.result === "string") {
+              setFormData((prev) => ({ ...prev, [field]: reader.result as string }));
+            }
+          };
+          reader.readAsDataURL(file);
         }
-      };
-      reader.readAsDataURL(file);
+      } else {
+        // Video file
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (typeof reader.result === "string") {
+            setFormData((prev) => ({ ...prev, [field]: reader.result as string }));
+          }
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -339,13 +356,18 @@ export default function AdminStoriesPage() {
                     {/* Before Image Preview */}
                     <td className="py-3.5 px-4">
                       <div className="relative w-12 h-12 rounded-xl overflow-hidden border border-red-300 bg-slate-100">
-                        <Image
-                          src={story.beforeImageUrl}
-                          alt="Before"
-                          fill
-                          sizes="48px"
-                          className="object-cover"
-                        />
+                        {story.beforeImageUrl ? (
+                          <Image
+                            src={story.beforeImageUrl}
+                            alt="Before"
+                            fill
+                            sizes="48px"
+                            className="object-cover"
+                            unoptimized
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-[10px] text-slate-400">खाली</div>
+                        )}
                         <span className="absolute bottom-0 inset-x-0 bg-red-700 text-white text-[8px] text-center font-bold">
                           पहले
                         </span>
@@ -355,13 +377,18 @@ export default function AdminStoriesPage() {
                     {/* After Image Preview */}
                     <td className="py-3.5 px-4">
                       <div className="relative w-12 h-12 rounded-xl overflow-hidden border border-emerald-300 bg-slate-100">
-                        <Image
-                          src={story.afterImageUrl}
-                          alt="After"
-                          fill
-                          sizes="48px"
-                          className="object-cover"
-                        />
+                        {story.afterImageUrl ? (
+                          <Image
+                            src={story.afterImageUrl}
+                            alt="After"
+                            fill
+                            sizes="48px"
+                            className="object-cover"
+                            unoptimized
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-[10px] text-slate-400">खाली</div>
+                        )}
                         <span className="absolute bottom-0 inset-x-0 bg-emerald-700 text-white text-[8px] text-center font-bold">
                           बाद में
                         </span>
@@ -532,18 +559,34 @@ export default function AdminStoriesPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200">
                 {/* Before Photo */}
                 <div className="space-y-2">
-                  <label className="block text-slate-800 font-bold text-xs">
-                    बिफोर फोटो (Before Photo)
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-slate-800 font-bold text-xs">
+                      बिफोर फोटो (Before Photo)
+                    </label>
+                    {formData.beforeImageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData((prev) => ({ ...prev, beforeImageUrl: "" }))}
+                        className="text-[10px] text-red-600 hover:underline"
+                      >
+                        हटाएं (Clear)
+                      </button>
+                    )}
+                  </div>
                   <div className="flex items-center gap-3">
-                    <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-red-300 shrink-0 bg-white">
-                      <Image
-                        src={formData.beforeImageUrl || "/images/stories/daad_before.jpg"}
-                        alt="Before Preview"
-                        fill
-                        sizes="64px"
-                        className="object-cover"
-                      />
+                    <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-red-300 shrink-0 bg-white flex items-center justify-center">
+                      {formData.beforeImageUrl ? (
+                        <Image
+                          src={formData.beforeImageUrl}
+                          alt="Before Preview"
+                          fill
+                          sizes="64px"
+                          className="object-cover"
+                          unoptimized
+                        />
+                      ) : (
+                        <span className="text-[10px] text-slate-400 font-medium">कोई फोटो नहीं</span>
+                      )}
                     </div>
                     <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 shadow-2xs transition-colors">
                       <Upload className="w-3.5 h-3.5 text-slate-500" />
@@ -569,18 +612,34 @@ export default function AdminStoriesPage() {
 
                 {/* After Photo */}
                 <div className="space-y-2">
-                  <label className="block text-slate-800 font-bold text-xs">
-                    आफ्टर फोटो (After Photo)
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-slate-800 font-bold text-xs">
+                      आफ्टर फोटो (After Photo)
+                    </label>
+                    {formData.afterImageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData((prev) => ({ ...prev, afterImageUrl: "" }))}
+                        className="text-[10px] text-red-600 hover:underline"
+                      >
+                        हटाएं (Clear)
+                      </button>
+                    )}
+                  </div>
                   <div className="flex items-center gap-3">
-                    <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-emerald-300 shrink-0 bg-white">
-                      <Image
-                        src={formData.afterImageUrl || "/images/stories/daad_after.jpg"}
-                        alt="After Preview"
-                        fill
-                        sizes="64px"
-                        className="object-cover"
-                      />
+                    <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-emerald-300 shrink-0 bg-white flex items-center justify-center">
+                      {formData.afterImageUrl ? (
+                        <Image
+                          src={formData.afterImageUrl}
+                          alt="After Preview"
+                          fill
+                          sizes="64px"
+                          className="object-cover"
+                          unoptimized
+                        />
+                      ) : (
+                        <span className="text-[10px] text-slate-400 font-medium">कोई फोटो नहीं</span>
+                      )}
                     </div>
                     <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 shadow-2xs transition-colors">
                       <Upload className="w-3.5 h-3.5 text-slate-500" />

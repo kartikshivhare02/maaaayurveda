@@ -1,13 +1,15 @@
 import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
+import { getSupabaseServerAdmin } from "@/lib/supabase/server";
 import {
   MAIN_PRODUCT,
   BUNDLE_OFFERS,
   COUPONS,
   DEFAULT_STORY_TESTIMONIALS,
+  DEFAULT_PRODUCT_IMAGES,
   REVIEWS,
   BRAND_INFO,
 } from "@/lib/data/mockData";
-import { Product, BundleOffer, Coupon, StoryTestimonial, Review, SiteSettings } from "@/types";
+import { Product, ProductImageItem, BundleOffer, Coupon, StoryTestimonial, Review, SiteSettings } from "@/types";
 
 // Helper to convert snake_case DB row to camelCase BundleOffer
 export function mapDbBundle(row: any): BundleOffer {
@@ -49,6 +51,31 @@ export function mapBundleToDb(b: BundleOffer): any {
 
 // Helper to convert snake_case DB row to camelCase Product
 export function mapDbProduct(row: any): Product {
+  const parsedGallery: ProductImageItem[] = Array.isArray(row.images) && row.images.length > 0
+    ? row.images.map((img: any, idx: number) => {
+        if (typeof img === "string") {
+          return {
+            id: `img-${idx + 1}`,
+            url: img,
+            label: idx === 0 ? "मुख्य फोटो" : `उत्पाद फोटो ${idx + 1}`,
+            subtitle: idx === 0 ? "प्राथमिक उत्पाद फोटो" : "अतिरिक्त फोटो",
+            isPrimary: idx === 0,
+            type: idx === 0 ? "primary" : "secondary",
+          };
+        }
+        return {
+          id: img.id || `img-${idx + 1}`,
+          url: img.url,
+          label: img.label || (img.isPrimary ? "मुख्य फोटो" : `उत्पाद फोटो ${idx + 1}`),
+          subtitle: img.subtitle || "",
+          isPrimary: Boolean(img.isPrimary),
+          type: img.type || (img.isPrimary ? "primary" : "secondary"),
+        };
+      })
+    : DEFAULT_PRODUCT_IMAGES;
+
+  const urlList = parsedGallery.map((img) => img.url);
+
   return {
     id: row.id,
     slug: row.slug,
@@ -62,10 +89,8 @@ export function mapDbProduct(row: any): Product {
     netQty: row.net_qty,
     inStock: Boolean(row.in_stock),
     stockCount: Number(row.stock_count),
-    images: Array.isArray(row.images)
-      ? row.images.map((img: any) => (typeof img === "string" ? img : img.url))
-      : MAIN_PRODUCT.images,
-    galleryImages: Array.isArray(row.images) ? row.images : undefined,
+    images: urlList,
+    galleryImages: parsedGallery,
     category: row.category,
     classification: row.classification,
     ingredients: row.ingredients || MAIN_PRODUCT.ingredients,
@@ -91,6 +116,7 @@ export function mapDbStory(row: any): StoryTestimonial {
     rating: Number(row.rating || 5),
     beforeImageUrl: row.before_image_url,
     afterImageUrl: row.after_image_url,
+    videoUrl: row.video_url || "",
     storyHindi: row.story_hindi,
     isVerified: Boolean(row.is_verified),
     isActive: Boolean(row.is_active),
@@ -117,9 +143,10 @@ export function mapDbCoupon(row: any): Coupon {
 // ==========================================
 
 export async function fetchBundlesFromDb(): Promise<BundleOffer[]> {
-  if (isSupabaseConfigured() && supabase) {
+  const client = getSupabaseServerAdmin() || (isSupabaseConfigured() ? supabase : null);
+  if (client) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from("bundles")
         .select("*")
         .order("pack_count", { ascending: true });
@@ -135,12 +162,13 @@ export async function fetchBundlesFromDb(): Promise<BundleOffer[]> {
 }
 
 export async function fetchProductFromDb(slug = "maa-ayurvedic-cream"): Promise<Product> {
-  if (isSupabaseConfigured() && supabase) {
+  const client = getSupabaseServerAdmin() || (isSupabaseConfigured() ? supabase : null);
+  if (client) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from("products")
         .select("*")
-        .eq("slug", slug)
+        .or(`slug.eq.${slug},id.eq.maa-ayurvedic-cream-50g`)
         .maybeSingle();
 
       if (!error && data) {
@@ -154,13 +182,14 @@ export async function fetchProductFromDb(slug = "maa-ayurvedic-cream"): Promise<
 }
 
 export async function fetchStoriesFromDb(): Promise<StoryTestimonial[]> {
-  if (isSupabaseConfigured() && supabase) {
+  const client = getSupabaseServerAdmin() || (isSupabaseConfigured() ? supabase : null);
+  if (client) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from("story_testimonials")
         .select("*")
         .eq("is_active", true)
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: false });
 
       if (!error && data && data.length > 0) {
         return data.map(mapDbStory);
