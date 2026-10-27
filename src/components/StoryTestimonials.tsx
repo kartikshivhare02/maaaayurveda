@@ -18,15 +18,24 @@ import {
   Video,
 } from "lucide-react";
 
-export const StoryTestimonials: React.FC = () => {
-  const [stories, setStories] = useState<StoryTestimonial[]>(DEFAULT_STORY_TESTIMONIALS);
+interface StoryTestimonialsProps {
+  initialStories?: StoryTestimonial[];
+}
+
+export const StoryTestimonials: React.FC<StoryTestimonialsProps> = ({ initialStories }) => {
+  const [stories, setStories] = useState<StoryTestimonial[]>(() => {
+    if (initialStories && initialStories.length > 0) {
+      return initialStories.filter((s) => s.isActive !== false);
+    }
+    return DEFAULT_STORY_TESTIMONIALS;
+  });
   const [activeStoryIdx, setActiveStoryIdx] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<"after" | "before" | "video">("after");
   const [progress, setProgress] = useState(0);
 
   // Subscribe to storage update events & sync from Supabase
   useEffect(() => {
-    // 1. Initial local storage hydrate after mount
+    // 1. Initial local storage hydrate after mount (if available)
     try {
       const stored = localStorage.getItem("maa_story_testimonials");
       if (stored) {
@@ -38,8 +47,8 @@ export const StoryTestimonials: React.FC = () => {
       // ignore
     }
 
-    // 2. Fetch fresh stories from Supabase
-    fetch("/api/admin/stories")
+    // 2. Fetch fresh stories directly from Supabase via public API
+    fetch("/api/stories")
       .then((res) => (res.ok ? res.json() : null))
       .then((json) => {
         if (json?.stories && Array.isArray(json.stories) && json.stories.length > 0) {

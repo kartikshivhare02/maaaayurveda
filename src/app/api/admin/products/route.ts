@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerAdmin } from "@/lib/supabase/server";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const supabase = getSupabaseServerAdmin();
   if (!supabase) {
@@ -11,7 +13,7 @@ export async function GET() {
     .from("products")
     .select("*")
     .eq("id", "maa-ayurvedic-cream-50g")
-    .single();
+    .maybeSingle();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -71,7 +73,7 @@ export async function POST(request: Request) {
       .update(updatePayload)
       .eq("id", "maa-ayurvedic-cream-50g")
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error("Error updating Supabase product:", error);

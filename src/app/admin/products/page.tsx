@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { useProductStore } from "@/lib/store/productStore";
 import { ProductImageItem } from "@/types";
@@ -34,9 +34,11 @@ export default function AdminProductsPage() {
     removeImage,
     moveImage,
     resetToDefault,
+    saveImagesToDb,
   } = useProductStore();
 
   const [activeTab, setActiveTab] = useState<"details" | "images">("details");
+  const [isSavingImages, setIsSavingImages] = useState(false);
 
   // Form State for Product Details
   const [formData, setFormData] = useState({
@@ -52,6 +54,23 @@ export default function AdminProductsPage() {
     inStock: product.inStock,
     ingredients: product.ingredients,
   });
+
+  // Keep form data synchronized when product loads/updates from Supabase
+  useEffect(() => {
+    setFormData({
+      name: product.name,
+      hindiTitle: product.hindiTitle,
+      subtitle: product.subtitle,
+      tagline: product.tagline,
+      description: product.description,
+      priceRupees: product.pricePaise / 100,
+      mrpRupees: product.mrpPaise / 100,
+      netQty: product.netQty,
+      stockCount: product.stockCount,
+      inStock: product.inStock,
+      ingredients: product.ingredients,
+    });
+  }, [product]);
 
   // State for Add Image Modal / Form
   const [isAddImageOpen, setIsAddImageOpen] = useState(false);
@@ -84,22 +103,38 @@ export default function AdminProductsPage() {
       stockCount: Number(formData.stockCount),
       inStock: formData.inStock,
       ingredients: formData.ingredients,
+      images: images,
     };
 
     updateProduct(productPayload);
 
     // Save directly to Supabase database
     try {
-      await fetch("/api/admin/products", {
+      const res = await fetch("/api/admin/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(productPayload),
       });
+      if (res.ok) {
+        showToast("उत्पाद विवरण, मूल्य, फोटो एवं स्टॉक डेटाबेस में सफलतापूर्वक अपडेट हो गए!");
+      } else {
+        showToast("डेटाबेस अपडेट में त्रुटि आई, कृपया पुनः प्रयास करें।");
+      }
     } catch (e) {
       console.error("Failed to update product in Supabase:", e);
+      showToast("सर्वर त्रुटि: डेटाबेस से कनेक्ट नहीं हो सका।");
     }
+  };
 
-    showToast("उत्पाद विवरण, मूल्य एवं स्टॉक डेटाबेस में सफलतापूर्वक अपडेट हो गए!");
+  const handleSaveImagesToDb = async () => {
+    setIsSavingImages(true);
+    const success = await saveImagesToDb();
+    setIsSavingImages(false);
+    if (success) {
+      showToast("सभी फोटो डेटाबेस में सुरक्षित हो गईं और पूरी वेबसाइट पर तुरंत लाइव हैं!");
+    } else {
+      showToast("फोटो सेव करने में समस्या आई, कृपया इंटरनेट कनेक्शन जांचें।");
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -254,16 +289,20 @@ export default function AdminProductsPage() {
 
               <div>
                 <label className="block font-semibold text-gray-700 mb-1">
-                  टैगलाइन व उपशीर्षक (Subtitle / Tagline)
+                  पैकेज सामग्री व उपशीर्षक (Package Inclusions / Subtitle)
                 </label>
                 <input
                   type="text"
+                  placeholder="उदा. एक माँ आयुर्वेदिक क्रीम + दो नीम साबुन"
                   value={formData.subtitle}
                   onChange={(e) =>
                     setFormData({ ...formData, subtitle: e.target.value })
                   }
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
+                <p className="text-[11px] text-gray-500 mt-1">
+                  यहाँ लिखें कि इस उत्पाद पैकेज में क्या शामिल है (उदा. 1 क्रीम जार + 2 माँ आयुर्वेदिक नीम साबुन)। यह पूरी वेबसाइट पर दिखेगा।
+                </p>
               </div>
             </div>
 
@@ -474,14 +513,27 @@ export default function AdminProductsPage() {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setIsAddImageOpen(true)}
-              className="inline-flex items-center gap-2 bg-[#0b3d2e] hover:bg-[#07281e] text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-xs transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>नयी फोटो जोड़ें (Add Image)</span>
-            </button>
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={handleSaveImagesToDb}
+                disabled={isSavingImages}
+                className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-xs transition-colors"
+                title="सभी फोटो डेटाबेस में तुरंत सेव करें"
+              >
+                <Save className="w-4 h-4" />
+                <span>{isSavingImages ? "सेव हो रहा है..." : "डेटाबेस में फोटो सेव करें (Save to DB)"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsAddImageOpen(true)}
+                className="inline-flex items-center gap-2 bg-[#0b3d2e] hover:bg-[#07281e] text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-xs transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>नयी फोटो जोड़ें (Add Image)</span>
+              </button>
+            </div>
           </div>
 
           {/* Live Sliding Preview Bar */}

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerAdmin } from "@/lib/supabase/server";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const supabase = getSupabaseServerAdmin();
   if (!supabase) {
@@ -23,8 +25,9 @@ export async function GET() {
     concern: s.concern || "",
     duration: s.duration || "",
     rating: s.rating || 5,
-    beforeImageUrl: s.before_image_url || s.beforeImageUrl || "/images/product.jpeg",
-    afterImageUrl: s.after_image_url || s.afterImageUrl || "/images/product.jpeg",
+    beforeImageUrl: s.before_image_url || s.beforeImageUrl || "/images/stories/daad_before.jpg",
+    afterImageUrl: s.after_image_url || s.afterImageUrl || "/images/stories/daad_after.jpg",
+    videoUrl: s.video_url || s.videoUrl || "",
     storyHindi: s.story_hindi || s.storyHindi || "",
     isVerified: s.is_verified ?? s.isVerified ?? true,
     isActive: s.is_active ?? s.isActive ?? true,

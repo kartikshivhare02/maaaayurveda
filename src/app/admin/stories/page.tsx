@@ -47,20 +47,21 @@ export default function AdminStoriesPage() {
       try {
         const res = await fetch("/api/admin/stories");
         const json = await res.json();
-        if (json.success && Array.isArray(json.stories) && json.stories.length > 0) {
+        if (res.ok && Array.isArray(json.stories)) {
           const mapped: StoryTestimonial[] = json.stories.map((s: any) => ({
             id: s.id,
-            customerName: s.customer_name,
-            city: s.city,
-            concern: s.concern,
-            duration: s.duration,
-            rating: s.rating,
-            beforeImageUrl: s.before_image_url,
-            afterImageUrl: s.after_image_url,
-            storyHindi: s.story_hindi,
-            isVerified: s.is_verified,
-            isActive: s.is_active,
-            createdAt: s.created_at,
+            customerName: s.customerName || s.customer_name || "",
+            city: s.city || "",
+            concern: s.concern || "",
+            duration: s.duration || "",
+            rating: Number(s.rating || 5),
+            beforeImageUrl: s.beforeImageUrl || s.before_image_url || "/images/stories/daad_before.jpg",
+            afterImageUrl: s.afterImageUrl || s.after_image_url || "/images/stories/daad_after.jpg",
+            videoUrl: s.videoUrl || s.video_url || "",
+            storyHindi: s.storyHindi || s.story_hindi || "",
+            isVerified: s.isVerified ?? s.is_verified ?? true,
+            isActive: s.isActive ?? s.is_active ?? true,
+            createdAt: s.createdAt || s.created_at || new Date().toISOString(),
           }));
           setStories(mapped);
           return;

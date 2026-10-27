@@ -17,6 +17,7 @@ interface ProductContextType {
   removeImage: (id: string) => void;
   moveImage: (index: number, direction: "up" | "down") => void;
   resetToDefault: () => void;
+  saveImagesToDb: (customImages?: ProductImageItem[]) => Promise<boolean>;
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
@@ -60,12 +61,46 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
     // 2. Fresh sync from Supabase
     async function syncFromSupabase() {
       try {
-        const res = await fetch("/api/admin/products");
+        const res = await fetch("/api/products");
         if (res.ok) {
           const json = await res.json();
           if (json.product) {
             const p = json.product;
+
+            // Map and update images from Supabase
+            if (Array.isArray(p.images) && p.images.length > 0) {
+              const parsedImages: ProductImageItem[] = p.images.map((img: any, idx: number) => {
+                if (typeof img === "string") {
+                  return {
+                    id: `img-${idx + 1}`,
+                    url: img,
+                    label: idx === 0 ? "मुख्य फोटो" : `उत्पाद फोटो ${idx + 1}`,
+                    subtitle: idx === 0 ? "प्राथमिक उत्पाद फोटो" : "अतिरिक्त फोटो",
+                    isPrimary: idx === 0,
+                    type: idx === 0 ? "primary" : "secondary",
+                  };
+                }
+                return {
+                  id: img.id || `img-${idx + 1}`,
+                  url: img.url,
+                  label: img.label || (img.isPrimary ? "मुख्य फोटो" : `उत्पाद फोटो ${idx + 1}`),
+                  subtitle: img.subtitle || "",
+                  isPrimary: Boolean(img.isPrimary),
+                  type: img.type || (img.isPrimary ? "primary" : "secondary"),
+                };
+              });
+
+              setImages(parsedImages);
+              try {
+                localStorage.setItem(IMAGES_STORAGE_KEY, JSON.stringify(parsedImages));
+              } catch {}
+            }
+
             setProduct((prev) => {
+              const urlList = Array.isArray(p.images) && p.images.length > 0
+                ? p.images.map((img: any) => (typeof img === "string" ? img : img.url))
+                : prev.images;
+
               const updated: Product = {
                 ...prev,
                 name: p.name || prev.name,
@@ -78,13 +113,15 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 netQty: p.net_qty || prev.netQty,
                 stockCount: typeof p.stock_count === "number" ? p.stock_count : prev.stockCount,
                 inStock: typeof p.in_stock === "boolean" ? p.in_stock : prev.inStock,
-                images: Array.isArray(p.images) && p.images.length > 0 ? p.images : prev.images,
+                images: urlList,
                 ingredients: Array.isArray(p.ingredients) && p.ingredients.length > 0 ? p.ingredients : prev.ingredients,
                 manufacturer: p.manufacturer || prev.manufacturer,
                 marketer: p.marketer || prev.marketer,
                 batchInfo: p.batch_info || prev.batchInfo,
               };
-              localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(updated));
+              try {
+                localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(updated));
+              } catch {}
               return updated;
             });
           }
@@ -132,6 +169,21 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
+  const saveImagesToDb = async (customImages?: ProductImageItem[]): Promise<boolean> => {
+    const toSave = customImages || images;
+    try {
+      const res = await fetch("/api/admin/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ images: toSave }),
+      });
+      return res.ok;
+    } catch (err) {
+      console.error("Failed to save images to database:", err);
+      return false;
+    }
+  };
+
   const saveImagesData = (updatedImages: ProductImageItem[]) => {
     setImages(updatedImages);
     try {
@@ -139,7 +191,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       // Also update product.images string array for backwards compatibility
       const urlList = updatedImages.map((img) => img.url);
       setProduct((prev) => {
-        const nextProd = { ...prev, images: urlList };
+        const nextProd = { ...prev, images: urlList, galleryImages: updatedImages };
         localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(nextProd));
         return nextProd;
       });
@@ -147,6 +199,9 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } catch {
       // ignore
     }
+
+    // Auto-save to Supabase
+    saveImagesToDb(updatedImages);
   };
 
   const updateProduct = (updated: Partial<Product>) => {
@@ -239,6 +294,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
         removeImage,
         moveImage,
         resetToDefault,
+        saveImagesToDb,
       }}
     >
       {children}
@@ -263,6 +319,7 @@ export const useProductStore = () => {
       removeImage: () => {},
       moveImage: () => {},
       resetToDefault: () => {},
+      saveImagesToDb: async () => false,
     };
   }
   return context;

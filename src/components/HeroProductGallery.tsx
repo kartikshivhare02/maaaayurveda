@@ -5,14 +5,22 @@ import Image from "next/image";
 import { useProductStore } from "@/lib/store/productStore";
 import { Leaf, Eye, Sparkles, ChevronLeft, ChevronRight, Star } from "lucide-react";
 
-export const HeroProductGallery: React.FC = () => {
+interface HeroProductGalleryProps {
+  initialImages?: ProductImageItem[];
+}
+
+export const HeroProductGallery: React.FC<HeroProductGalleryProps> = ({ initialImages }) => {
   const { product, slidingImages } = useProductStore();
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [isZoomed, setIsZoomed] = useState(false);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
-  // Fallback if empty
-  const activeImages = slidingImages.length > 0 ? slidingImages : [
+  // Use slidingImages from store, or initialImages from server, or fallback
+  const activeImages = slidingImages.length > 0
+    ? slidingImages
+    : (initialImages && initialImages.length > 0)
+    ? initialImages
+    : [
     {
       id: "default-1",
       url: "/images/product.jpeg",
@@ -174,6 +182,16 @@ export const HeroProductGallery: React.FC = () => {
               <span className="sr-only">{item.label}</span>
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Dynamic Package Inclusions Badge from Admin */}
+      {product.subtitle && (
+        <div className="bg-emerald-50/90 border border-emerald-200/80 rounded-2xl px-3.5 py-2 flex items-center gap-2 text-xs text-emerald-900 font-bold shadow-2xs">
+          <Sparkles className="w-4 h-4 text-emerald-700 shrink-0" />
+          <span className="leading-tight">
+            पैकेज सामग्री: <span className="text-emerald-950 font-black">{product.subtitle}</span>
+          </span>
         </div>
       )}
 

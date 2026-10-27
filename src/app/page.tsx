@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { BRAND_INFO, MAIN_PRODUCT } from "@/lib/data/mockData";
+import { fetchProductFromDb, fetchStoriesFromDb } from "@/lib/data/db";
 import { ComboSelector } from "@/components/ComboSelector";
 import { DietaryPrecautions } from "@/components/DietaryPrecautions";
 import { EducationalSection } from "@/components/EducationalSection";
@@ -26,19 +27,33 @@ import {
   Zap,
 } from "lucide-react";
 
-export default function HomePage() {
+export const revalidate = 0; // Ensure fresh database fetch
+
+export default async function HomePage() {
+  const [product, stories] = await Promise.all([
+    fetchProductFromDb(),
+    fetchStoriesFromDb(),
+  ]);
+
+  const primaryImgUrl =
+    product.images && product.images[0]
+      ? product.images[0]
+      : MAIN_PRODUCT.images[0];
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
-    name: MAIN_PRODUCT.name,
-    image: `https://maaayurvedic.in${MAIN_PRODUCT.images[0]}`,
-    description: MAIN_PRODUCT.description,
+    name: product.name || MAIN_PRODUCT.name,
+    image: primaryImgUrl.startsWith("http")
+      ? primaryImgUrl
+      : `https://maaayurvedic.in${primaryImgUrl}`,
+    description: product.description || MAIN_PRODUCT.description,
     brand: { "@type": "Brand", name: BRAND_INFO.name },
     offers: {
       "@type": "Offer",
       url: "https://maaayurvedic.in",
       priceCurrency: "INR",
-      price: (MAIN_PRODUCT.pricePaise / 100).toString(),
+      price: ((product.pricePaise || MAIN_PRODUCT.pricePaise) / 100).toString(),
       availability: "https://schema.org/InStock",
       itemCondition: "https://schema.org/NewCondition",
     },
@@ -74,11 +89,17 @@ export default function HomePage() {
             <div className="lg:col-span-7 flex flex-col space-y-5 sm:space-y-6 text-center lg:text-left">
 
               {/* Trust Badge */}
-              <div className="flex justify-center lg:justify-start">
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2">
                 <span className="badge-ayur">
                   <Leaf className="w-3.5 h-3.5 text-forest-700" />
                   100% शुद्ध आयुर्वेदिक • 0% स्टेरॉयड • आयुष प्रमाणित
                 </span>
+                {product.subtitle && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                    {product.subtitle}
+                  </span>
+                )}
               </div>
 
               {/* Main Headline */}
@@ -98,12 +119,12 @@ export default function HomePage() {
 
               {/* Mobile: Product Gallery */}
               <div className="lg:hidden my-2">
-                <HeroProductGallery />
+                <HeroProductGallery initialImages={product.galleryImages} />
               </div>
 
               {/* Rating + Social Proof */}
-              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3">
-                <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl shadow-xs">
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 pt-1">
+                <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200/80 px-3 py-1 rounded-full">
                   <div className="flex text-amber-500">
                     {[...Array(5)].map((_, i) => (
                       <Star key={i} className="w-3.5 h-3.5 fill-current" />
@@ -171,7 +192,7 @@ export default function HomePage() {
               {/* Floating glow ring */}
               <div className="absolute inset-4 bg-forest-200/30 rounded-full blur-2xl" />
               <div className="relative w-full">
-                <HeroProductGallery />
+                <HeroProductGallery initialImages={product.galleryImages} />
               </div>
             </div>
           </div>
@@ -213,7 +234,7 @@ export default function HomePage() {
       {/* ═══════════════════════════════════════════════
           3. STORY TESTIMONIALS (Before/After)
       ═══════════════════════════════════════════════ */}
-      <StoryTestimonials />
+      <StoryTestimonials initialStories={stories} />
 
       {/* ═══════════════════════════════════════════════
           4. PRODUCT BENEFITS (4 Pillars)
@@ -309,7 +330,7 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
-            {MAIN_PRODUCT.ingredients.map((ing, idx) => (
+            {(product.ingredients && product.ingredients.length > 0 ? product.ingredients : MAIN_PRODUCT.ingredients).map((ing, idx) => (
               <div key={idx} className="ingredient-card flex flex-col gap-3">
                 <div className="flex items-start justify-between">
                   <span className="inline-flex items-center gap-1.5 text-xs font-black text-forest-800 bg-forest-50 border border-forest-200/70 px-2.5 py-1 rounded-lg">
@@ -354,7 +375,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-10 space-y-2">
             <span className="badge-gold">
-              <Sparkles className="w-3 h-3 text-amber-600" />
+              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
               विशेष कॉम्बो छूट
             </span>
             <h2 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight mt-2">
@@ -371,7 +392,7 @@ export default function HomePage() {
 
             {/* Left on Desktop / Second on Mobile: Product Image & Guarantee */}
             <div className="lg:col-span-5 order-2 lg:order-1 space-y-5">
-              <HeroProductGallery />
+              <HeroProductGallery initialImages={product.galleryImages} />
 
               {/* Guarantee Banner */}
               <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200/70 shadow-xs">
@@ -414,13 +435,13 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {MAIN_PRODUCT.directions.map((dir, idx) => (
+            {(product.directions && product.directions.length > 0 ? product.directions : MAIN_PRODUCT.directions).map((dir, idx) => (
               <div
                 key={idx}
                 className="group relative bg-white rounded-2xl p-6 border-1.5 border-stone-200 hover:border-forest-300 hover:shadow-md transition-all duration-300 flex flex-col gap-4"
               >
                 {/* Connector line on desktop */}
-                {idx < MAIN_PRODUCT.directions.length - 1 && (
+                {idx < (product.directions && product.directions.length > 0 ? product.directions.length : MAIN_PRODUCT.directions.length) - 1 && (
                   <div className="hidden lg:block absolute top-8 -right-4 w-8 h-0.5 bg-gradient-to-r from-forest-200 to-forest-100 z-10" />
                 )}
 
