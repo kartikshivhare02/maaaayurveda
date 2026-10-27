@@ -77,11 +77,18 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+import { fetchProductFromDb, fetchBundlesFromDb } from "@/lib/data/db";
+
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const [product, bundles] = await Promise.all([
+    fetchProductFromDb(),
+    fetchBundlesFromDb(),
+  ]);
+
   return (
     <html lang="hi" className={`${devanagari.variable} ${inter.variable}`}>
       <head>
@@ -91,8 +98,8 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen flex flex-col font-sans bg-[#fdfdfd] text-slate-800 antialiased selection:bg-emerald-100 selection:text-emerald-900 w-full max-w-full overflow-x-hidden">
         <AuthProvider>
-          <ProductProvider>
-            <CartProvider>
+          <ProductProvider initialProduct={product}>
+            <CartProvider initialBundles={bundles}>
               <Header />
               <main className="flex-1 w-full max-w-full overflow-x-hidden">{children}</main>
               <Footer />

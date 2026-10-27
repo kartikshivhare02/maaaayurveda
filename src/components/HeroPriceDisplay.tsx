@@ -3,11 +3,25 @@
 import React from "react";
 import { useProductStore } from "@/lib/store/productStore";
 
-export const HeroPriceDisplay: React.FC = () => {
+interface HeroPriceDisplayProps {
+  initialPricePaise?: number;
+  initialMrpPaise?: number;
+}
+
+export const HeroPriceDisplay: React.FC<HeroPriceDisplayProps> = ({
+  initialPricePaise,
+  initialMrpPaise,
+}) => {
   const { product } = useProductStore();
 
-  const price = product.pricePaise / 100;
-  const mrp = product.mrpPaise / 100;
+  // If initial props are passed from server/DB, prioritize them to prevent any client-side price flickering
+  const rawPricePaise =
+    initialPricePaise !== undefined ? initialPricePaise : product.pricePaise;
+  const rawMrpPaise =
+    initialMrpPaise !== undefined ? initialMrpPaise : product.mrpPaise;
+
+  const price = rawPricePaise / 100;
+  const mrp = rawMrpPaise / 100;
   const discountPct = mrp > 0 ? Math.round(((mrp - price) / mrp) * 100) : 0;
 
   return (
@@ -26,3 +40,4 @@ export const HeroPriceDisplay: React.FC = () => {
     </div>
   );
 };
+

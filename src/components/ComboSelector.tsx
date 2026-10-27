@@ -18,14 +18,28 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-export const ComboSelector: React.FC = () => {
+interface ComboSelectorProps {
+  initialBundles?: BundleOffer[];
+}
+
+export const ComboSelector: React.FC<ComboSelectorProps> = ({ initialBundles }) => {
   const router = useRouter();
   const { addItem, selectedBundle, setSelectedBundle, bundles } = useCart();
   const { isLoggedIn, openAuthModal } = useAuth();
   const [quantity, setQuantity] = useState(1);
   const [addedNoticeId, setAddedNoticeId] = useState<string | null>(null);
 
-  const activeBundles = bundles && bundles.length > 0 ? bundles : BUNDLE_OFFERS;
+  const activeBundles =
+    initialBundles && initialBundles.length > 0
+      ? initialBundles
+      : bundles && bundles.length > 0
+      ? bundles
+      : BUNDLE_OFFERS;
+
+  const currentSelectedBundle =
+    selectedBundle && activeBundles.some((b) => b.id === selectedBundle.id)
+      ? activeBundles.find((b) => b.id === selectedBundle.id)!
+      : activeBundles.find((b) => b.isPopular) || activeBundles[0];
 
   const handleSelectBundle = (bundle: BundleOffer) => {
     setSelectedBundle(bundle);
@@ -80,7 +94,7 @@ export const ComboSelector: React.FC = () => {
       {/* Offer Cards with Individual Embedded Buy & Cart Actions */}
       <div className="space-y-4 mb-6">
         {activeBundles.map((bundle) => {
-          const isSelected = selectedBundle.id === bundle.id;
+          const isSelected = (selectedBundle?.id || currentSelectedBundle.id) === bundle.id;
           const perPack = Math.round(bundle.pricePaise / bundle.packCount / 100);
           const bundleTotal = (bundle.pricePaise * (isSelected ? quantity : 1)) / 100;
           const bundleSavings = (((bundle.mrpPaise - bundle.pricePaise) * (isSelected ? quantity : 1)) / 100);

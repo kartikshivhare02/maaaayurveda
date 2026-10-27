@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { BRAND_INFO, MAIN_PRODUCT } from "@/lib/data/mockData";
-import { fetchProductFromDb, fetchStoriesFromDb } from "@/lib/data/db";
+import { fetchProductFromDb, fetchStoriesFromDb, fetchBundlesFromDb } from "@/lib/data/db";
 import { ComboSelector } from "@/components/ComboSelector";
 import { DietaryPrecautions } from "@/components/DietaryPrecautions";
 import { EducationalSection } from "@/components/EducationalSection";
@@ -30,9 +30,10 @@ import {
 export const revalidate = 0; // Ensure fresh database fetch
 
 export default async function HomePage() {
-  const [product, stories] = await Promise.all([
+  const [product, stories, bundles] = await Promise.all([
     fetchProductFromDb(),
     fetchStoriesFromDb(),
+    fetchBundlesFromDb(),
   ]);
 
   const primaryImgUrl =
@@ -144,7 +145,10 @@ export default async function HomePage() {
 
               {/* Price + CTAs */}
               <div className="flex flex-col sm:flex-row items-center lg:items-start justify-center lg:justify-start gap-3 sm:gap-4">
-                <HeroPriceDisplay />
+                <HeroPriceDisplay
+                  initialPricePaise={product.pricePaise}
+                  initialMrpPaise={product.mrpPaise}
+                />
                 <div className="flex items-center gap-2.5 w-full sm:w-auto">
                   <a
                     href="#offers"
@@ -387,7 +391,7 @@ export default async function HomePage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
             {/* Right on Desktop / First on Mobile: Direct Combo Selector */}
             <div id="product-selection" className="lg:col-span-7 order-1 lg:order-2 scroll-mt-24">
-              <ComboSelector />
+              <ComboSelector initialBundles={bundles} />
             </div>
 
             {/* Left on Desktop / Second on Mobile: Product Image & Guarantee */}

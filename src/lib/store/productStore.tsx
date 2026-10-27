@@ -25,18 +25,32 @@ const ProductContext = createContext<ProductContextType | undefined>(undefined);
 const PRODUCT_STORAGE_KEY = "maa_admin_product_data";
 const IMAGES_STORAGE_KEY = "maa_admin_product_images";
 
-export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [product, setProduct] = useState<Product>(MAIN_PRODUCT);
-  const [images, setImages] = useState<ProductImageItem[]>(DEFAULT_PRODUCT_IMAGES);
+export const ProductProvider: React.FC<{
+  children: React.ReactNode;
+  initialProduct?: Product;
+}> = ({ children, initialProduct }) => {
+  const [product, setProduct] = useState<Product>(initialProduct || MAIN_PRODUCT);
+  const [images, setImages] = useState<ProductImageItem[]>(
+    initialProduct?.galleryImages && initialProduct.galleryImages.length > 0
+      ? initialProduct.galleryImages
+      : DEFAULT_PRODUCT_IMAGES
+  );
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Load from localStorage on client mount, and sync with Supabase
   useEffect(() => {
-    // 1. Instant local render
+    // 1. Instant local render (sanitizing stale prices)
     try {
       const savedProduct = localStorage.getItem(PRODUCT_STORAGE_KEY);
       if (savedProduct) {
         const parsed = JSON.parse(savedProduct);
+        const refProduct = initialProduct || MAIN_PRODUCT;
+        // Purge stale cached price (e.g., 549 or 499) that doesn't match current real price
+        if (parsed.pricePaise && parsed.pricePaise !== refProduct.pricePaise) {
+          delete parsed.pricePaise;
+          delete parsed.mrpPaise;
+        }
+
         setProduct((prev) => ({
           ...prev,
           ...parsed,

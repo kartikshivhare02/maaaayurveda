@@ -26,11 +26,16 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const CartProvider: React.FC<{
+  children: React.ReactNode;
+  initialBundles?: BundleOffer[];
+}> = ({ children, initialBundles }) => {
+  const defaultBundles =
+    initialBundles && initialBundles.length > 0 ? initialBundles : BUNDLE_OFFERS;
   const [items, setItems] = useState<CartItem[]>([]);
-  const [bundles, setBundles] = useState<BundleOffer[]>(BUNDLE_OFFERS);
+  const [bundles, setBundles] = useState<BundleOffer[]>(defaultBundles);
   const [selectedBundle, setSelectedBundle] = useState<BundleOffer>(
-    BUNDLE_OFFERS.find((b) => b.isPopular) || BUNDLE_OFFERS[0]
+    defaultBundles.find((b) => b.isPopular) || defaultBundles[0]
   );
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -42,9 +47,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (savedBundles) {
         const parsedBundles: BundleOffer[] = JSON.parse(savedBundles);
         if (Array.isArray(parsedBundles) && parsedBundles.length > 0) {
-          setBundles(parsedBundles);
-          const popular = parsedBundles.find((b) => b.isPopular) || parsedBundles[0];
-          setSelectedBundle(popular);
+          // Check if parsedBundles are stale compared to defaultBundles
+          const firstCurrent = defaultBundles[0];
+          const firstParsed = parsedBundles.find((b) => b.id === firstCurrent?.id);
+          const isStale = firstParsed && firstParsed.pricePaise !== firstCurrent.pricePaise;
+
+          if (!isStale) {
+            setBundles(parsedBundles);
+            const popular = parsedBundles.find((b) => b.isPopular) || parsedBundles[0];
+            setSelectedBundle(popular);
+          } else {
+            // Discard stale cache from localStorage
+            localStorage.removeItem("maa_bundle_offers");
+          }
         }
       }
 
