@@ -100,18 +100,36 @@ export const TaxInvoice: React.FC<TaxInvoiceProps> = ({
             bundleId: "bundle-2pack",
             title: "माँ आयुर्वेदिक क्रीम (2 का पैक - संपूर्ण कोर्स)",
             packCount: 2,
-            unitPricePaise: 89900,
-            totalPricePaise: 89900,
-            mrpPaise: 139800,
+            unitPricePaise: 149900,
+            totalPricePaise: 149900,
+            mrpPaise: 199800,
             quantity: 1,
             image: MAIN_PRODUCT.images[0],
           },
         ];
 
-  const totalPaise = order?.totalPaise || 89900;
-  const subtotalPaise = order?.subtotalPaise || totalPaise;
-  const discountPaise = order?.discountPaise || 0;
-  const shippingPaise = order?.shippingPaise || 0;
+  const calculatedFromItems = items.reduce(
+    (acc, it) => acc + (Number(it.totalPricePaise) || Number(it.unitPricePaise) * Number(it.quantity) || 0),
+    0
+  );
+
+  const totalPaise =
+    Number(order?.totalPaise) ||
+    Number((order as any)?.total_paise) ||
+    calculatedFromItems ||
+    149900;
+  const subtotalPaise =
+    Number(order?.subtotalPaise) ||
+    Number((order as any)?.subtotal_paise) ||
+    totalPaise;
+  const discountPaise =
+    Number(order?.discountPaise) ||
+    Number((order as any)?.discount_paise) ||
+    0;
+  const shippingPaise =
+    Number(order?.shippingPaise) ||
+    Number((order as any)?.shipping_paise) ||
+    0;
   const totalRupees = totalPaise / 100;
 
   const handlePrint = () => {
