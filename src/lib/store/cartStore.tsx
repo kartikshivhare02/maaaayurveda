@@ -102,42 +102,14 @@ export const CartProvider: React.FC<{
 
       const saved = localStorage.getItem("maa_ayurvedic_cart");
       if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setItems(parsed);
-        } else {
-          // Default to the popular 2-pack bundle
-          const defaultBundle = BUNDLE_OFFERS.find((b) => b.isPopular) || BUNDLE_OFFERS[0];
-          setItems([
-            {
-              id: defaultBundle.id,
-              bundleId: defaultBundle.id,
-              title: defaultBundle.title,
-              packCount: defaultBundle.packCount,
-              unitPricePaise: defaultBundle.pricePaise,
-              totalPricePaise: defaultBundle.pricePaise,
-              mrpPaise: defaultBundle.mrpPaise,
-              quantity: 1,
-              image: MAIN_PRODUCT.images[0],
-            },
-          ]);
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setItems(parsed);
+          }
+        } catch {
+          // ignore corrupted local storage
         }
-      } else {
-        // Default popular 2-pack
-        const defaultBundle = BUNDLE_OFFERS.find((b) => b.isPopular) || BUNDLE_OFFERS[0];
-        setItems([
-          {
-            id: defaultBundle.id,
-            bundleId: defaultBundle.id,
-            title: defaultBundle.title,
-            packCount: defaultBundle.packCount,
-            unitPricePaise: defaultBundle.pricePaise,
-            totalPricePaise: defaultBundle.pricePaise,
-            mrpPaise: defaultBundle.mrpPaise,
-            quantity: 1,
-            image: MAIN_PRODUCT.images[0],
-          },
-        ]);
       }
     } catch {
       // Fallback
@@ -246,6 +218,11 @@ export const CartProvider: React.FC<{
   const clearCart = () => {
     setItems([]);
     setAppliedCoupon(null);
+    try {
+      localStorage.removeItem("maa_ayurvedic_cart");
+    } catch {
+      // ignore
+    }
   };
 
   const totalItems = items.reduce((acc, item) => acc + item.quantity, 0);

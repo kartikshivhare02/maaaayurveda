@@ -289,7 +289,7 @@ export default function CheckoutPage() {
         localStorage.setItem("maa_orders", JSON.stringify(existingOrders));
 
         clearCart();
-        router.push(`/order-success/${orderNumber}?type=cod`);
+        router.push(`/order-placed/${orderNumber}?type=cod`);
         return;
       }
 
@@ -385,7 +385,7 @@ export default function CheckoutPage() {
                 localStorage.setItem("maa_orders", JSON.stringify(existingOrders));
 
                 clearCart();
-                router.push(`/order-success/${effectiveOrderNumber}?type=prepaid`);
+                router.push(`/order-placed/${effectiveOrderNumber}?type=prepaid`);
               } else {
                 setErrorMsg(verifyData.error || "भुगतान सत्यापन विफल रहा। कृपया सहायता टीम से संपर्क करें।");
                 setLoading(false);
@@ -447,7 +447,7 @@ export default function CheckoutPage() {
         localStorage.setItem("maa_orders", JSON.stringify(existingOrders));
 
         clearCart();
-        router.push(`/order-success/${effectiveOrderNumber}?type=prepaid`);
+        router.push(`/order-placed/${effectiveOrderNumber}?type=prepaid`);
       } else {
         throw new Error(
           "रेज़रपे पेमेंट विंडो लोड नहीं हो सकी। कृपया अपना इंटरनेट कनेक्शन जांचें या पेज रीफ़्रेश करें।"
