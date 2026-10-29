@@ -56,19 +56,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const syncUserProfile = async (sessionUser: any): Promise<AuthUser> => {
     let role = "customer";
-    if (supabase && isSupabaseConfigured()) {
-      try {
-        const { data } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", sessionUser.id)
-          .single();
-        if (data?.role) role = data.role;
-      } catch {
-        // fallback
-      }
-    }
-
     const email = sessionUser.email || "";
     const name =
       sessionUser.user_metadata?.full_name ||
@@ -76,6 +63,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email.split("@")[0] ||
       "सत्यापित ग्राहक";
     const avatar = sessionUser.user_metadata?.avatar_url;
+
+    if (supabase && isSupabaseConfigured() && sessionUser?.id) {
+      try {
+        const { data } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", sessionUser.id)
+          .maybeSingle();
+
+        if (data?.role) {
+          role = data.role;
+        } else {
+          // If profile row is missing, insert it so foreign key constraints on orders are satisfied
+          await supabase.from("profiles").upsert(
+            {
+              id: sessionUser.id,
+              full_name: name,
+              email: email || null,
+              role: "customer",
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "id" }
+          );
+        }
+      } catch {
+        // fallback
+      }
+    }
 
     // Strict validation: Only admin role or verified admin email
     const isAdmin = isUserAdmin(email, role);

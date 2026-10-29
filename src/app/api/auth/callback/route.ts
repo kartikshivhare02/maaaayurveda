@@ -9,6 +9,7 @@
 
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
+import { getSupabaseServerAdmin } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
@@ -63,11 +64,37 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
     console.error("[auth/callback] exchangeCodeForSession error:", error.message);
     return NextResponse.redirect(`${origin}/?authError=session_exchange`);
+  }
+
+  // Auto-sync profile to profiles table to prevent foreign key issues on orders
+  if (sessionData?.session?.user) {
+    const u = sessionData.session.user;
+    const adminClient = getSupabaseServerAdmin();
+    if (adminClient) {
+      try {
+        await adminClient.from("profiles").upsert(
+          {
+            id: u.id,
+            full_name:
+              u.user_metadata?.full_name ||
+              u.user_metadata?.name ||
+              u.email?.split("@")[0] ||
+              "Customer",
+            email: u.email || null,
+            role: "customer",
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "id" }
+        );
+      } catch (pe) {
+        console.warn("[auth/callback] Could not upsert profile:", pe);
+      }
+    }
   }
 
   // Successfully exchanged session and cookies attached — user is now immediately logged in

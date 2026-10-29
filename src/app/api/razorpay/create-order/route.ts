@@ -104,10 +104,47 @@ export async function POST(request: Request) {
     const supabase = getSupabaseServerAdmin();
     if (supabase) {
       try {
+        // Foreign key protection: Verify userId exists in profiles or auto-create it
+        let validUserId: string | null = null;
+        if (userId && typeof userId === "string" && userId.trim()) {
+          const cleanId = userId.trim();
+          try {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("id")
+              .eq("id", cleanId)
+              .maybeSingle();
+
+            if (profile) {
+              validUserId = profile.id;
+            } else {
+              const { data: authData } = await supabase.auth.admin.getUserById(cleanId);
+              if (authData?.user) {
+                const { error: insErr } = await supabase.from("profiles").upsert(
+                  {
+                    id: authData.user.id,
+                    full_name: customerName || authData.user.user_metadata?.full_name || authData.user.email?.split("@")[0] || "Customer",
+                    email: customerEmail || authData.user.email || null,
+                    phone: customerPhone || null,
+                    role: "customer",
+                    updated_at: new Date().toISOString(),
+                  },
+                  { onConflict: "id" }
+                );
+                if (!insErr) {
+                  validUserId = authData.user.id;
+                }
+              }
+            }
+          } catch (verErr) {
+            console.warn("Could not verify profile for razorpay order user:", cleanId, verErr);
+          }
+        }
+
         await supabase.from("orders").upsert(
           {
             order_number: orderNumber,
-            user_id: userId || null,
+            user_id: validUserId,
             customer_name: customerName || "Customer",
             customer_phone: customerPhone || "",
             customer_email: customerEmail || null,
