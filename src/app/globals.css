@@ -528,3 +528,62 @@
 @media (min-width: 641px) {
   .show-mobile-only { display: none !important; }
 }
+
+/* =====================================================
+   PRINT MEDIA RULES (TAX INVOICE & RETAIL BILL)
+====================================================== */
+@media print {
+  /* Hide all typical website shell elements during printing */
+  header,
+  footer,
+  .trust-strip,
+  #floating-cart-btn,
+  #floating-support-btn,
+  .no-print,
+  button:not(.allow-print),
+  nav,
+  aside {
+    display: none !important;
+  }
+
+  /* Reset body and page margins */
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm 12mm 12mm;
+  }
+
+  /* Hide the web UI when printing invoice */
+  .hide-on-print {
+    display: none !important;
+  }
+
+  /* Show the invoice sheet cleanly */
+  #printable-tax-invoice,
+  .printable-invoice-container {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Force background colors and borders to print properly */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

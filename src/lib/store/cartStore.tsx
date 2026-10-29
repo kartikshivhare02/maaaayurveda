@@ -22,6 +22,7 @@ interface CartContextType {
   setSelectedBundle: (bundle: BundleOffer) => void;
   bundles: BundleOffer[];
   updateBundles: (updated: BundleOffer[]) => void;
+  isLoaded: boolean;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -289,6 +290,7 @@ export const CartProvider: React.FC<{
         setSelectedBundle,
         bundles,
         updateBundles,
+        isLoaded,
       }}
     >
       {children}

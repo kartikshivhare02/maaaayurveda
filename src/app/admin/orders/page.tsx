@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { Order, FulfillmentStatus, PaymentStatus } from "@/types";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import { triggerAdminSuccess } from "@/lib/context/AdminToastContext";
+import { TaxInvoice } from "@/components/TaxInvoice";
 import {
   Truck,
   Package,
@@ -16,6 +18,7 @@ import {
   ChevronDown,
   ShoppingBag,
   RefreshCw,
+  ExternalLink,
 } from "lucide-react";
 
 export default function AdminOrdersPage() {
@@ -23,6 +26,7 @@ export default function AdminOrdersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Form for updating shipping info
@@ -211,7 +215,8 @@ export default function AdminOrdersPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="hide-on-print space-y-6">
       <div>
         <h1 className="text-2xl sm:text-3xl font-black text-gray-900">
           ऑर्डर प्रबंधन (Orders Management)
@@ -316,7 +321,21 @@ export default function AdminOrdersPage() {
                     </div>
 
                     <div className="flex items-center justify-between text-[11px] text-gray-400 mt-2">
-                      <span>{new Date(ord.createdAt).toLocaleDateString("hi-IN")}</span>
+                      <div className="flex items-center gap-2">
+                        <span>{new Date(ord.createdAt).toLocaleDateString("hi-IN")}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setInvoiceOrder(ord);
+                          }}
+                          className="inline-flex items-center gap-1 text-[10px] text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/70 px-2 py-0.5 rounded-lg transition-colors font-bold cursor-pointer"
+                          title="टैक्स इनवॉइस व रसीद प्रिंट करें"
+                        >
+                          <Printer className="w-3 h-3 text-emerald-700" />
+                          <span>बिल प्रिंट</span>
+                        </button>
+                      </div>
                       <span className="font-semibold text-blue-700 uppercase bg-blue-50 px-2 py-0.5 rounded">
                         {ord.fulfillmentStatus}
                       </span>
@@ -335,9 +354,28 @@ export default function AdminOrdersPage() {
               <div className="border-b border-gray-100 pb-4">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-400">ऑर्डर विवरण</span>
-                  <span className="text-xs font-mono font-bold text-emerald-700">
-                    {selectedOrder.orderNumber}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-mono font-bold text-emerald-700">
+                      {selectedOrder.orderNumber}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setInvoiceOrder(selectedOrder)}
+                      className="inline-flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer ml-1"
+                      title="टैक्स इनवॉइस व रसीद प्रिंट करें"
+                    >
+                      <Printer className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>बिल प्रिंट करें</span>
+                    </button>
+                    <Link
+                      href={`/invoice/${encodeURIComponent(selectedOrder.orderNumber)}`}
+                      target="_blank"
+                      className="p-1 text-gray-400 hover:text-emerald-700 transition-colors"
+                      title="नए टैब में इनवॉइस खोलें"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
                 </div>
                 <h2 className="text-lg font-bold text-gray-900 mt-1">
                   {selectedOrder.customerName}
@@ -457,6 +495,25 @@ export default function AdminOrdersPage() {
           )}
         </div>
       </div>
-    </div>
+      </div>
+
+      {/* Dedicated Printable Tax Invoice (Strictly visible only during printing) */}
+      <div className="hidden print:block">
+        {invoiceOrder && <TaxInvoice order={invoiceOrder} showActionToolbar={false} />}
+      </div>
+
+      {/* Screen Modal for Admin Invoice Preview */}
+      {invoiceOrder && (
+        <div className="no-print fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-xs flex items-start justify-center p-2 sm:p-4 animate-fade-in">
+          <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden my-4 sm:my-8 animate-scale-in">
+            <TaxInvoice
+              order={invoiceOrder}
+              onClose={() => setInvoiceOrder(null)}
+              showActionToolbar={true}
+            />
+          </div>
+        </div>
+      )}
+    </>
   );
 }

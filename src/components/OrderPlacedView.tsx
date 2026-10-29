@@ -6,6 +6,7 @@ import Image from "next/image";
 import confetti from "canvas-confetti";
 import { BRAND_INFO, MAIN_PRODUCT } from "@/lib/data/mockData";
 import { Order, CartItem } from "@/types";
+import { TaxInvoice } from "@/components/TaxInvoice";
 import {
   CheckCircle2,
   Truck,
@@ -24,6 +25,7 @@ import {
   Clock,
   Sparkles,
   ShoppingBag,
+  ExternalLink,
 } from "lucide-react";
 
 interface OrderPlacedViewProps {
@@ -39,6 +41,7 @@ export const OrderPlacedView: React.FC<OrderPlacedViewProps> = ({
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [deliveryDate, setDeliveryDate] = useState("");
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
   const cleanOrderId = (orderId || "").trim();
 
@@ -150,7 +153,9 @@ export const OrderPlacedView: React.FC<OrderPlacedViewProps> = ({
   const customerPhone = order?.customerPhone || address?.phone || "";
 
   return (
-    <div className="bg-[#f8faf9] min-h-screen py-8 sm:py-14 print:bg-white print:py-0">
+    <>
+      {/* 1. Normal Web View (Completely hidden during printing) */}
+      <div className="hide-on-print bg-[#f8faf9] min-h-screen py-8 sm:py-14">
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
         {/* Main Card */}
         <div className="bg-white rounded-3xl p-6 sm:p-10 border border-emerald-950/10 shadow-lg space-y-8 print:shadow-none print:border-none print:p-0">
@@ -447,14 +452,26 @@ export const OrderPlacedView: React.FC<OrderPlacedViewProps> = ({
             </div>
 
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 text-xs text-gray-500">
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="inline-flex items-center gap-1.5 hover:text-gray-900 font-semibold py-2 px-3 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <Printer className="w-4 h-4 text-gray-600" />
-                रसीद प्रिंट / डाउनलोड करें (Print Receipt)
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowInvoiceModal(true)}
+                  className="inline-flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2 px-3.5 rounded-xl shadow-xs transition-colors cursor-pointer"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>बिल / रसीद प्रिंट करें (Print Bill)</span>
+                </button>
+
+                <Link
+                  href={`/invoice/${encodeURIComponent(cleanOrderId)}`}
+                  target="_blank"
+                  className="inline-flex items-center gap-1 text-xs text-gray-600 hover:text-emerald-800 font-semibold py-2 px-2.5 rounded-lg hover:bg-gray-100 transition-colors"
+                  title="नए टैब में बीजक खोलें"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
+                  <span>नये टैब में</span>
+                </Link>
+              </div>
 
               <Link
                 href="/"
@@ -467,6 +484,59 @@ export const OrderPlacedView: React.FC<OrderPlacedViewProps> = ({
 
         </div>
       </div>
-    </div>
+      </div>
+
+      {/* 2. Dedicated Printable Tax Invoice (Strictly visible only during printing) */}
+      <div className="hidden print:block">
+        <TaxInvoice
+          order={
+            order || {
+              orderNumber: cleanOrderId,
+              customerName,
+              customerPhone,
+              shippingAddress: address,
+              items,
+              totalPaise,
+              subtotalPaise,
+              discountPaise,
+              shippingPaise,
+              paymentMethod: isCod ? "cod" : "razorpay_online",
+              paymentStatus: isCod ? "pending" : "paid",
+              createdAt: new Date().toISOString(),
+            }
+          }
+          showActionToolbar={false}
+        />
+      </div>
+
+      {/* 3. Invoice Preview Modal on Screen */}
+      {showInvoiceModal && (
+        <div className="no-print fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-xs flex items-start justify-center p-2 sm:p-4 animate-fade-in">
+          <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden my-4 sm:my-8 animate-scale-in">
+            <TaxInvoice
+              order={
+                order || {
+                  orderNumber: cleanOrderId,
+                  customerName,
+                  customerPhone,
+                  shippingAddress: address,
+                  items,
+                  totalPaise,
+                  subtotalPaise,
+                  discountPaise,
+                  shippingPaise,
+                  paymentMethod: isCod ? "cod" : "razorpay_online",
+                  paymentStatus: isCod ? "pending" : "paid",
+                  createdAt: new Date().toISOString(),
+                }
+              }
+              onClose={() => setShowInvoiceModal(false)}
+              showActionToolbar={true}
+            />
+          </div>
+        </div>
+      )}
+    </>
   );
 };
+

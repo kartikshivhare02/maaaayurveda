@@ -9,7 +9,12 @@ function OrderSuccessContent() {
   const params = useParams();
   const searchParams = useSearchParams();
 
-  const orderId = (params?.orderId as string) || "MAA-ORDER";
+  const orderId =
+    (params?.orderId as string) ||
+    searchParams.get("orderId") ||
+    searchParams.get("orderNumber") ||
+    searchParams.get("id") ||
+    "MAA-ORDER";
   const orderType = searchParams.get("type") || "prepaid";
 
   return <OrderPlacedView orderId={orderId} orderType={orderType} />;

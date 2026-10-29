@@ -60,10 +60,12 @@ export default function CheckoutPage() {
     finalTotalPaise,
     clearCart,
     appliedCoupon,
+    isLoaded,
   } = useCart();
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const orderCompletedRef = React.useRef(false);
 
   // Customer & Shipping Address State
   const [formData, setFormData] = useState<ShippingAddress>({
@@ -95,11 +97,11 @@ export default function CheckoutPage() {
   const [pincodeMsg, setPincodeMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    // If cart is empty, redirect back
-    if (items.length === 0) {
+    // Only redirect if cart has loaded from storage, is empty, and no order has been completed or is processing
+    if (isLoaded && items.length === 0 && !orderCompletedRef.current && !loading) {
       router.push("/cart");
     }
-  }, [items, router]);
+  }, [items, isLoaded, loading, router]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -288,8 +290,9 @@ export default function CheckoutPage() {
         });
         localStorage.setItem("maa_orders", JSON.stringify(existingOrders));
 
+        orderCompletedRef.current = true;
         clearCart();
-        router.push(`/order-placed/${orderNumber}?type=cod`);
+        window.location.href = `/order-success/${encodeURIComponent(orderNumber)}?type=cod`;
         return;
       }
 
@@ -384,8 +387,9 @@ export default function CheckoutPage() {
                 });
                 localStorage.setItem("maa_orders", JSON.stringify(existingOrders));
 
+                orderCompletedRef.current = true;
                 clearCart();
-                router.push(`/order-placed/${effectiveOrderNumber}?type=prepaid`);
+                window.location.href = `/order-success/${encodeURIComponent(effectiveOrderNumber)}?type=prepaid`;
               } else {
                 setErrorMsg(verifyData.error || "भुगतान सत्यापन विफल रहा। कृपया सहायता टीम से संपर्क करें।");
                 setLoading(false);
@@ -446,8 +450,9 @@ export default function CheckoutPage() {
         });
         localStorage.setItem("maa_orders", JSON.stringify(existingOrders));
 
+        orderCompletedRef.current = true;
         clearCart();
-        router.push(`/order-placed/${effectiveOrderNumber}?type=prepaid`);
+        window.location.href = `/order-success/${encodeURIComponent(effectiveOrderNumber)}?type=prepaid`;
       } else {
         throw new Error(
           "रेज़रपे पेमेंट विंडो लोड नहीं हो सकी। कृपया अपना इंटरनेट कनेक्शन जांचें या पेज रीफ़्रेश करें।"
