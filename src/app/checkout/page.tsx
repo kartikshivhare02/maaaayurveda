@@ -156,58 +156,18 @@ export default function CheckoutPage() {
     }
   };
 
-  // Robust dual-layer order persistence (Server API + Direct Supabase fallback)
+  // Secure order persistence through server-validated API endpoint
   const persistOrderToDatabase = async (payload: any) => {
-    let saved = false;
-    try {
-      const res = await fetch("/api/orders/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && !json.warning) {
-          saved = true;
-        }
-      }
-    } catch (e) {
-      console.error("API /api/orders/create error:", e);
+    const res = await fetch("/api/orders/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || "ऑर्डर डेटाबेस में सेव करने में विफल रहा।");
     }
-
-    // Direct client fallback to Supabase if server did not save it
-    if (!saved && supabase && isSupabaseConfigured()) {
-      try {
-        const { error } = await supabase.from("orders").insert({
-          order_number: payload.orderNumber,
-          user_id: payload.userId || null,
-          customer_name: payload.customerName,
-          customer_phone: payload.customerPhone,
-          customer_email: payload.customerEmail || null,
-          shipping_address: payload.shippingAddress,
-          items: payload.items,
-          subtotal_paise: payload.subtotalPaise || 0,
-          discount_paise: payload.discountPaise || 0,
-          coupon_code: payload.couponCode || null,
-          shipping_paise: payload.shippingPaise || 0,
-          total_paise: payload.totalPaise || 0,
-          payment_method: payload.paymentMethod || "cod",
-          payment_status: payload.paymentStatus || "pending",
-          fulfillment_status: payload.fulfillmentStatus || "placed",
-          razorpay_order_id: payload.razorpayOrderId || null,
-          razorpay_payment_id: payload.razorpayPaymentId || null,
-          notes: payload.notes || null,
-        });
-        if (!error) {
-          saved = true;
-        } else {
-          console.error("Direct Supabase insert error:", error);
-        }
-      } catch (err) {
-        console.error("Direct Supabase insert exception:", err);
-      }
-    }
-    return saved;
+    return true;
   };
 
   // Process Order and Payment

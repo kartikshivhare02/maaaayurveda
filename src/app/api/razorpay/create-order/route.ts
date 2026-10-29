@@ -25,6 +25,7 @@ export async function POST(request: Request) {
     // 1. SERVER-SIDE PRICE RECALCULATION
     const activeBundles = await fetchBundlesFromDb();
     let calculatedSubtotalPaise = 0;
+    const verifiedItems: CartItem[] = [];
 
     for (const item of items as CartItem[]) {
       const bundle = activeBundles.find((b) => b.id === item.bundleId);
@@ -34,7 +35,23 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-      calculatedSubtotalPaise += bundle.pricePaise * item.quantity;
+      const qty = Math.max(1, Number(item.quantity) || 1);
+      const unitPricePaise = bundle.pricePaise;
+      const totalPricePaise = unitPricePaise * qty;
+      const mrpPaise = bundle.mrpPaise * qty;
+
+      calculatedSubtotalPaise += totalPricePaise;
+      verifiedItems.push({
+        ...item,
+        id: bundle.id,
+        bundleId: bundle.id,
+        title: bundle.title,
+        packCount: bundle.packCount,
+        quantity: qty,
+        unitPricePaise,
+        totalPricePaise,
+        mrpPaise,
+      });
     }
 
     // 2. SERVER-SIDE COUPON DISCOUNT VERIFICATION
@@ -95,7 +112,7 @@ export async function POST(request: Request) {
             customer_phone: customerPhone || "",
             customer_email: customerEmail || null,
             shipping_address: shippingAddress || {},
-            items,
+            items: verifiedItems,
             subtotal_paise: calculatedSubtotalPaise,
             discount_paise: calculatedDiscountPaise,
             coupon_code: couponCode || null,

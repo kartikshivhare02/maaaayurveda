@@ -27,6 +27,11 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+// Storage keys with versioning to prevent stale, corrupted, or legacy auto-added carts
+const CART_STORAGE_KEY = "maa_ayurvedic_cart_v2";
+const LEGACY_CART_STORAGE_KEY = "maa_ayurvedic_cart";
+const BUNDLE_STORAGE_KEY = "maa_bundle_offers";
+
 export const CartProvider: React.FC<{
   children: React.ReactNode;
   initialBundles?: BundleOffer[];
@@ -41,30 +46,78 @@ export const CartProvider: React.FC<{
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load from localStorage on mount
+  // Helper to re-synchronize items with latest bundle pricing & active status
+  const sanitizeCartItems = (rawItems: any[], activeBundles: BundleOffer[]): CartItem[] => {
+    if (!Array.isArray(rawItems) || rawItems.length === 0) return [];
+    return rawItems
+      .filter((item) => activeBundles.some((b) => b.id === item.bundleId && b.active !== false))
+      .map((item) => {
+        const bundle = activeBundles.find((b) => b.id === item.bundleId)!;
+        const qty = Math.max(1, Number(item.quantity) || 1);
+        return {
+          id: bundle.id,
+          bundleId: bundle.id,
+          title: bundle.title,
+          packCount: bundle.packCount,
+          unitPricePaise: bundle.pricePaise,
+          totalPricePaise: bundle.pricePaise * qty,
+          mrpPaise: bundle.mrpPaise * qty,
+          quantity: qty,
+          image: item.image || MAIN_PRODUCT.images[0],
+        };
+      });
+  };
+
+  // Load from localStorage on mount & clean up legacy/stale caches
   useEffect(() => {
     try {
-      const savedBundles = localStorage.getItem("maa_bundle_offers");
+      // 1. Immediately purge legacy unversioned cart that may contain auto-added items
+      localStorage.removeItem(LEGACY_CART_STORAGE_KEY);
+
+      let effectiveBundles = defaultBundles;
+      const savedBundles = localStorage.getItem(BUNDLE_STORAGE_KEY);
       if (savedBundles) {
         const parsedBundles: BundleOffer[] = JSON.parse(savedBundles);
         if (Array.isArray(parsedBundles) && parsedBundles.length > 0) {
-          // Check if parsedBundles are stale compared to defaultBundles
-          const firstCurrent = defaultBundles[0];
-          const firstParsed = parsedBundles.find((b) => b.id === firstCurrent?.id);
-          const isStale = firstParsed && firstParsed.pricePaise !== firstCurrent.pricePaise;
+          // Check if cached bundles match current pricing; if prices differ, purge stale cache
+          const isStale = parsedBundles.some((pb) => {
+            const current = defaultBundles.find((db) => db.id === pb.id);
+            return current && current.pricePaise !== pb.pricePaise;
+          });
 
           if (!isStale) {
             setBundles(parsedBundles);
+            effectiveBundles = parsedBundles;
             const popular = parsedBundles.find((b) => b.isPopular) || parsedBundles[0];
             setSelectedBundle(popular);
           } else {
-            // Discard stale cache from localStorage
-            localStorage.removeItem("maa_bundle_offers");
+            localStorage.removeItem(BUNDLE_STORAGE_KEY);
           }
         }
       }
 
-      // Sync fresh bundle offers from Supabase
+      // 2. Load explicit user cart from versioned storage key & strictly validate against bundles
+      const savedCart = localStorage.getItem(CART_STORAGE_KEY);
+      if (savedCart) {
+        try {
+          const parsedCart = JSON.parse(savedCart);
+          const sanitized = sanitizeCartItems(parsedCart, effectiveBundles);
+          if (sanitized.length > 0) {
+            setItems(sanitized);
+          } else {
+            localStorage.removeItem(CART_STORAGE_KEY);
+            setItems([]);
+          }
+        } catch {
+          localStorage.removeItem(CART_STORAGE_KEY);
+          setItems([]);
+        }
+      } else {
+        // Guarantee cart is completely empty until user explicitly adds an item
+        setItems([]);
+      }
+
+      // 3. Sync fresh bundle offers from Supabase and re-align cart items to authentic pricing
       fetch("/api/admin/bundles")
         .then((res) => (res.ok ? res.json() : null))
         .then((json) => {
@@ -94,26 +147,26 @@ export const CartProvider: React.FC<{
                 return stillExists || mapped.find((b) => b.isPopular) || mapped[0];
               });
               try {
-                localStorage.setItem("maa_bundle_offers", JSON.stringify(mapped));
+                localStorage.setItem(BUNDLE_STORAGE_KEY, JSON.stringify(mapped));
               } catch {}
+
+              // Re-validate and re-price any existing cart items against fresh DB bundles
+              setItems((prevItems) => {
+                const updated = sanitizeCartItems(prevItems, mapped);
+                if (updated.length === 0 && prevItems.length > 0) {
+                  try {
+                    localStorage.removeItem(CART_STORAGE_KEY);
+                  } catch {}
+                }
+                return updated;
+              });
             }
           }
         })
         .catch((err) => console.error("Failed to sync bundles from Supabase:", err));
-
-      const saved = localStorage.getItem("maa_ayurvedic_cart");
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setItems(parsed);
-          }
-        } catch {
-          // ignore corrupted local storage
-        }
-      }
     } catch {
-      // Fallback
+      // Fallback: keep cart completely empty
+      setItems([]);
     }
     setIsLoaded(true);
   }, []);
@@ -122,7 +175,11 @@ export const CartProvider: React.FC<{
   useEffect(() => {
     if (isLoaded) {
       try {
-        localStorage.setItem("maa_ayurvedic_cart", JSON.stringify(items));
+        if (items.length === 0) {
+          localStorage.removeItem(CART_STORAGE_KEY);
+        } else {
+          localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+        }
       } catch {
         // ignore
       }
@@ -133,7 +190,7 @@ export const CartProvider: React.FC<{
   useEffect(() => {
     const handleBundleSync = () => {
       try {
-        const saved = localStorage.getItem("maa_bundle_offers");
+        const saved = localStorage.getItem(BUNDLE_STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
@@ -156,7 +213,7 @@ export const CartProvider: React.FC<{
   const updateBundles = (updated: BundleOffer[]) => {
     setBundles(updated);
     try {
-      localStorage.setItem("maa_bundle_offers", JSON.stringify(updated));
+      localStorage.setItem(BUNDLE_STORAGE_KEY, JSON.stringify(updated));
       window.dispatchEvent(new Event("maa_bundles_updated"));
     } catch {
       // ignore
@@ -164,15 +221,27 @@ export const CartProvider: React.FC<{
   };
 
   const addItem = (bundle: BundleOffer, qty = 1) => {
+    // Resolve against active bundles state or fallback to ensure authentic pricing and product data
+    const activeBundle =
+      bundles.find((b) => b.id === bundle.id) ||
+      defaultBundles.find((b) => b.id === bundle.id) ||
+      bundle;
+    const validQty = Math.max(1, Number(qty) || 1);
+
     setItems((prev) => {
-      const existing = prev.find((item) => item.bundleId === bundle.id);
+      const existing = prev.find((item) => item.bundleId === activeBundle.id);
       if (existing) {
+        const newQty = existing.quantity + validQty;
         return prev.map((item) =>
-          item.bundleId === bundle.id
+          item.bundleId === activeBundle.id
             ? {
                 ...item,
-                quantity: item.quantity + qty,
-                totalPricePaise: (item.quantity + qty) * item.unitPricePaise,
+                title: activeBundle.title,
+                packCount: activeBundle.packCount,
+                quantity: newQty,
+                unitPricePaise: activeBundle.pricePaise,
+                totalPricePaise: newQty * activeBundle.pricePaise,
+                mrpPaise: newQty * activeBundle.mrpPaise,
               }
             : item
         );
@@ -180,14 +249,14 @@ export const CartProvider: React.FC<{
       return [
         ...prev,
         {
-          id: bundle.id,
-          bundleId: bundle.id,
-          title: bundle.title,
-          packCount: bundle.packCount,
-          unitPricePaise: bundle.pricePaise,
-          totalPricePaise: bundle.pricePaise * qty,
-          mrpPaise: bundle.mrpPaise * qty,
-          quantity: qty,
+          id: activeBundle.id,
+          bundleId: activeBundle.id,
+          title: activeBundle.title,
+          packCount: activeBundle.packCount,
+          unitPricePaise: activeBundle.pricePaise,
+          totalPricePaise: activeBundle.pricePaise * validQty,
+          mrpPaise: activeBundle.mrpPaise * validQty,
+          quantity: validQty,
           image: MAIN_PRODUCT.images[0],
         },
       ];
@@ -199,20 +268,31 @@ export const CartProvider: React.FC<{
   };
 
   const updateQuantity = (bundleId: string, quantity: number) => {
-    if (quantity <= 0) {
+    const validQty = Number(quantity);
+    if (!validQty || validQty <= 0) {
       removeItem(bundleId);
       return;
     }
+
+    const bundle =
+      bundles.find((b) => b.id === bundleId) ||
+      defaultBundles.find((b) => b.id === bundleId);
+
     setItems((prev) =>
-      prev.map((item) =>
-        item.bundleId === bundleId
-          ? {
-              ...item,
-              quantity,
-              totalPricePaise: quantity * item.unitPricePaise,
-            }
-          : item
-      )
+      prev.map((item) => {
+        if (item.bundleId === bundleId) {
+          const unitPrice = bundle ? bundle.pricePaise : item.unitPricePaise;
+          const unitMrp = bundle ? bundle.mrpPaise : item.mrpPaise / item.quantity;
+          return {
+            ...item,
+            quantity: validQty,
+            unitPricePaise: unitPrice,
+            totalPricePaise: validQty * unitPrice,
+            mrpPaise: validQty * unitMrp,
+          };
+        }
+        return item;
+      })
     );
   };
 
@@ -220,7 +300,8 @@ export const CartProvider: React.FC<{
     setItems([]);
     setAppliedCoupon(null);
     try {
-      localStorage.removeItem("maa_ayurvedic_cart");
+      localStorage.removeItem(CART_STORAGE_KEY);
+      localStorage.removeItem(LEGACY_CART_STORAGE_KEY);
     } catch {
       // ignore
     }
@@ -231,9 +312,9 @@ export const CartProvider: React.FC<{
 
   // Discount calculation
   let discountPaise = 0;
-  if (appliedCoupon && subtotalPaise >= appliedCoupon.minOrderPaise) {
+  if (items.length > 0 && appliedCoupon && subtotalPaise >= appliedCoupon.minOrderPaise) {
     if (appliedCoupon.discountType === "fixed") {
-      discountPaise = appliedCoupon.discountValue;
+      discountPaise = Math.min(appliedCoupon.discountValue, subtotalPaise);
     } else {
       const calculated = Math.round((subtotalPaise * appliedCoupon.discountValue) / 100);
       discountPaise = appliedCoupon.maxDiscountPaise
