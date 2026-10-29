@@ -105,7 +105,8 @@ export default function AdminProductsPage() {
       stockCount: Number(formData.stockCount),
       inStock: formData.inStock,
       ingredients: formData.ingredients,
-      images: images,
+      images: images.map((img) => img.url),
+      galleryImages: images,
     };
 
     updateProduct(productPayload);

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerAdmin } from "@/lib/supabase/server";
+import { refundRazorpayPayment, isRazorpayConfigured } from "@/lib/razorpay";
 
 export async function GET() {
   try {
@@ -46,7 +47,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { id, orderNumber, status, adminNotes } = body;
+    const { id, orderNumber, status, adminNotes, processGatewayRefund } = body;
 
     if (!id && !orderNumber) {
       return NextResponse.json({ error: "id or orderNumber is required" }, { status: 400 });
@@ -57,6 +58,43 @@ export async function POST(request: Request) {
     };
     if (status) updatePayload.status = status;
     if (adminNotes !== undefined) updatePayload.admin_notes = adminNotes;
+
+    // If marking as refunded or gateway refund requested, look up the order
+    let gatewayRefundResult = null;
+    const targetOrderNumber = orderNumber;
+
+    if ((status === "refunded" || processGatewayRefund) && targetOrderNumber) {
+      try {
+        const { data: order } = await supabase
+          .from("orders")
+          .select("id, order_number, total_paise, payment_method, razorpay_payment_id")
+          .eq("order_number", targetOrderNumber)
+          .maybeSingle();
+
+        if (order && order.razorpay_payment_id) {
+          try {
+            gatewayRefundResult = await refundRazorpayPayment(
+              order.razorpay_payment_id,
+              order.total_paise,
+              { order_number: targetOrderNumber, reason: "Customer Satisfaction Guarantee Claim" }
+            );
+            // Update order payment status
+            await supabase
+              .from("orders")
+              .update({
+                payment_status: "refunded",
+                updated_at: new Date().toISOString(),
+              })
+              .eq("order_number", targetOrderNumber);
+          } catch (refundErr: any) {
+            console.error("Razorpay gateway refund error:", refundErr);
+            updatePayload.admin_notes = `${adminNotes || ""} (Gateway Refund Warning: ${refundErr.message})`.trim();
+          }
+        }
+      } catch (e) {
+        console.warn("Could not query order for refund:", e);
+      }
+    }
 
     let query = supabase.from("refund_requests").update(updatePayload);
     if (id) {
@@ -70,7 +108,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      gatewayRefund: gatewayRefundResult,
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

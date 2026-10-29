@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { useProductStore } from "@/lib/store/productStore";
+import { ProductImageItem } from "@/types";
 import { Leaf, Eye, Sparkles, ChevronLeft, ChevronRight, Star } from "lucide-react";
 
 interface HeroProductGalleryProps {

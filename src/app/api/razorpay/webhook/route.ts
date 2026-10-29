@@ -7,8 +7,10 @@ export async function POST(request: Request) {
     const rawBody = await request.text();
     const signature = request.headers.get("x-razorpay-signature") || "";
 
+    // 1. VERIFY WEBHOOK SIGNATURE
     const isValid = verifyWebhookSignature(rawBody, signature);
     if (!isValid) {
+      console.warn("Razorpay webhook signature mismatch");
       return NextResponse.json({ error: "Invalid webhook signature" }, { status: 400 });
     }
 
@@ -17,14 +19,18 @@ export async function POST(request: Request) {
     const payload = event.payload;
 
     const supabase = getSupabaseServerAdmin();
+    if (!supabase) {
+      return NextResponse.json({ status: "ok", message: "Supabase not connected" });
+    }
 
-    // Idempotent event processing
-    if (eventType === "payment.captured") {
-      const paymentEntity = payload.payment.entity;
-      const razorpayOrderId = paymentEntity.order_id;
-      const razorpayPaymentId = paymentEntity.id;
+    // 2. IDEMPOTENT EVENT HANDLING
+    if (eventType === "order.paid" || eventType === "payment.captured") {
+      const paymentEntity = payload.payment?.entity;
+      const orderEntity = payload.order?.entity;
+      const razorpayOrderId = paymentEntity?.order_id || orderEntity?.id;
+      const razorpayPaymentId = paymentEntity?.id;
 
-      if (supabase && razorpayOrderId) {
+      if (razorpayOrderId) {
         await supabase
           .from("orders")
           .update({
@@ -36,10 +42,10 @@ export async function POST(request: Request) {
           .eq("razorpay_order_id", razorpayOrderId);
       }
     } else if (eventType === "payment.failed") {
-      const paymentEntity = payload.payment.entity;
-      const razorpayOrderId = paymentEntity.order_id;
+      const paymentEntity = payload.payment?.entity;
+      const razorpayOrderId = paymentEntity?.order_id;
 
-      if (supabase && razorpayOrderId) {
+      if (razorpayOrderId) {
         await supabase
           .from("orders")
           .update({
@@ -48,9 +54,25 @@ export async function POST(request: Request) {
           })
           .eq("razorpay_order_id", razorpayOrderId);
       }
+    } else if (eventType === "refund.processed") {
+      const paymentEntity = payload.payment?.entity;
+      const razorpayOrderId = paymentEntity?.order_id;
+      const paymentId = paymentEntity?.id;
+
+      let query = supabase.from("orders").update({
+        payment_status: "refunded",
+        updated_at: new Date().toISOString(),
+      });
+
+      if (razorpayOrderId) {
+        query = query.eq("razorpay_order_id", razorpayOrderId);
+      } else if (paymentId) {
+        query = query.eq("razorpay_payment_id", paymentId);
+      }
+      await query;
     }
 
-    return NextResponse.json({ status: "ok" });
+    return NextResponse.json({ status: "ok", event: eventType });
   } catch (error: any) {
     console.error("Webhook processing error:", error);
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });

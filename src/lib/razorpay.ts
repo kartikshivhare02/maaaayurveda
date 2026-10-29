@@ -1,17 +1,70 @@
 import crypto from "crypto";
 
-export const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_mock12345";
-export const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || "mock_secret_abcdef";
-export const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || "mock_webhook_secret";
+export const getRazorpayKeyId = (): string => {
+  return (
+    process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
+    process.env.RAZORPAY_KEY_ID ||
+    ""
+  ).trim();
+};
 
-export const isRazorpayConfigured = () => {
-  const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-  const secret = process.env.RAZORPAY_KEY_SECRET;
-  return Boolean(keyId && secret && !keyId.includes("rzp_test_mock"));
+export const getRazorpayKeySecret = (): string => {
+  return (process.env.RAZORPAY_KEY_SECRET || "").trim();
+};
+
+export const getRazorpayWebhookSecret = (): string => {
+  return (process.env.RAZORPAY_WEBHOOK_SECRET || "").trim();
 };
 
 /**
- * Verify Razorpay payment signature
+ * Returns true if real (live or test) Razorpay credentials are configured.
+ */
+export const isRazorpayConfigured = (): boolean => {
+  const keyId = getRazorpayKeyId();
+  const secret = getRazorpayKeySecret();
+  return Boolean(
+    keyId &&
+    secret &&
+    !keyId.includes("rzp_test_mock") &&
+    keyId !== "rzp_test_yourkeyid" &&
+    secret !== "your_razorpay_secret" &&
+    secret !== "mock_secret_abcdef"
+  );
+};
+
+/**
+ * Loads Razorpay checkout.js script asynchronously in the browser
+ */
+export const loadRazorpayCheckoutScript = (): Promise<boolean> => {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") {
+      resolve(false);
+      return;
+    }
+
+    if ((window as any).Razorpay) {
+      resolve(true);
+      return;
+    }
+
+    const existingScript = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+    if (existingScript) {
+      existingScript.addEventListener("load", () => resolve(true));
+      existingScript.addEventListener("error", () => resolve(false));
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
+/**
+ * Verify Razorpay payment signature using timing-safe HMAC-SHA256 comparison
  */
 export const verifyRazorpaySignature = (
   orderId: string,
@@ -23,12 +76,20 @@ export const verifyRazorpaySignature = (
     return Boolean(orderId && paymentId && signature);
   }
 
+  const secret = getRazorpayKeySecret();
   const generatedSignature = crypto
-    .createHmac("sha256", RAZORPAY_KEY_SECRET)
+    .createHmac("sha256", secret)
     .update(`${orderId}|${paymentId}`)
     .digest("hex");
 
-  return generatedSignature === signature;
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(generatedSignature, "utf-8"),
+      Buffer.from(signature, "utf-8")
+    );
+  } catch {
+    return generatedSignature === signature;
+  }
 };
 
 /**
@@ -38,16 +99,29 @@ export const verifyWebhookSignature = (
   rawBody: string,
   signature: string
 ): boolean => {
-  if (!isRazorpayConfigured()) {
+  const secret = getRazorpayWebhookSecret();
+  if (
+    !isRazorpayConfigured() ||
+    !secret ||
+    secret === "your_razorpay_webhook_secret" ||
+    secret === "mock_webhook_secret"
+  ) {
     return true;
   }
 
   const expectedSignature = crypto
-    .createHmac("sha256", RAZORPAY_WEBHOOK_SECRET)
+    .createHmac("sha256", secret)
     .update(rawBody)
     .digest("hex");
 
-  return expectedSignature === signature;
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(expectedSignature, "utf-8"),
+      Buffer.from(signature, "utf-8")
+    );
+  } catch {
+    return expectedSignature === signature;
+  }
 };
 
 /**
@@ -56,20 +130,27 @@ export const verifyWebhookSignature = (
 export const createRazorpayOrder = async (
   amountPaise: number,
   currency = "INR",
-  receipt: string
+  receipt: string,
+  notes: Record<string, string> = {}
 ) => {
+  const roundedAmountPaise = Math.round(amountPaise);
+
   if (!isRazorpayConfigured()) {
-    // Return sandbox mock order
+    // Return sandbox mock order for local testing without credentials
     return {
       id: `order_mock_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      amount: amountPaise,
+      amount: roundedAmountPaise,
       currency,
-      receipt,
+      receipt: receipt.slice(0, 40),
       status: "created",
+      isMock: true,
     };
   }
 
-  const auth = Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString("base64");
+  const keyId = getRazorpayKeyId();
+  const secret = getRazorpayKeySecret();
+  const auth = Buffer.from(`${keyId}:${secret}`).toString("base64");
+
   const response = await fetch("https://api.razorpay.com/v1/orders", {
     method: "POST",
     headers: {
@@ -77,16 +158,71 @@ export const createRazorpayOrder = async (
       Authorization: `Basic ${auth}`,
     },
     body: JSON.stringify({
-      amount: amountPaise,
+      amount: roundedAmountPaise,
       currency,
-      receipt,
-      payment_capture: 1,
+      receipt: receipt.slice(0, 40),
+      notes,
     }),
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error?.description || "Failed to create Razorpay order");
+    const errorData = await response.json().catch(() => ({}));
+    const errorMsg =
+      errorData.error?.description ||
+      errorData.error?.reason ||
+      `Razorpay order creation failed (status: ${response.status})`;
+    throw new Error(errorMsg);
+  }
+
+  const orderData = await response.json();
+  return {
+    ...orderData,
+    isMock: false,
+  };
+};
+
+/**
+ * Initiate an automated refund via Razorpay API
+ */
+export const refundRazorpayPayment = async (
+  paymentId: string,
+  amountPaise?: number,
+  notes?: Record<string, string>
+) => {
+  if (!isRazorpayConfigured()) {
+    return {
+      id: `rfnd_mock_${Date.now()}`,
+      payment_id: paymentId,
+      amount: amountPaise || 0,
+      status: "processed",
+      isMock: true,
+    };
+  }
+
+  const keyId = getRazorpayKeyId();
+  const secret = getRazorpayKeySecret();
+  const auth = Buffer.from(`${keyId}:${secret}`).toString("base64");
+
+  const payload: Record<string, any> = {};
+  if (amountPaise && amountPaise > 0) {
+    payload.amount = Math.round(amountPaise);
+  }
+  if (notes) {
+    payload.notes = notes;
+  }
+
+  const response = await fetch(`https://api.razorpay.com/v1/payments/${paymentId}/refund`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Basic ${auth}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error?.description || "Razorpay refund failed");
   }
 
   return response.json();

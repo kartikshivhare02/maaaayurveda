@@ -2,11 +2,13 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
+import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/store/cartStore";
 import { useAuth } from "@/lib/context/AuthContext";
 import { BRAND_INFO } from "@/lib/data/mockData";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
+import { loadRazorpayCheckoutScript } from "@/lib/razorpay";
 import { PaymentMethod, ShippingAddress } from "@/types";
 import {
   ShieldCheck,
@@ -292,6 +294,11 @@ export default function CheckoutPage() {
       }
 
       // Online Payment via Razorpay
+      let scriptReady = typeof window !== "undefined" && Boolean((window as any).Razorpay);
+      if (!scriptReady) {
+        scriptReady = await loadRazorpayCheckoutScript();
+      }
+
       const res = await fetch("/api/razorpay/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -299,98 +306,115 @@ export default function CheckoutPage() {
           items,
           customerPhone: cleanPhone,
           customerName: formData.fullName,
+          customerEmail: normalizedEmail,
+          shippingAddress: { ...formData, email: normalizedEmail },
+          couponCode: appliedCoupon?.code,
+          shippingPaise,
+          userId: user?.id,
         }),
       });
 
       const razorpayOrder = await res.json();
       if (!res.ok || !razorpayOrder.orderId) {
-        throw new Error(razorpayOrder.error || "Order creation failed");
+        throw new Error(razorpayOrder.error || "ऑर्डर निर्माण विफल रहा।");
       }
 
-      // Check if Razorpay script is in window, else simulate sandbox success
-      if (typeof window !== "undefined" && (window as any).Razorpay) {
+      const effectiveOrderNumber = razorpayOrder.orderNumber || orderNumber;
+
+      // Real Razorpay Checkout flow (runs when Razorpay checkout.js is available and not in mock mode)
+      if (typeof window !== "undefined" && (window as any).Razorpay && !razorpayOrder.isMock) {
         const options = {
-          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_mock12345",
+          key: razorpayOrder.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
           amount: razorpayOrder.amount,
-          currency: "INR",
+          currency: razorpayOrder.currency || "INR",
           name: BRAND_INFO.name,
-          description: "माँ आयुर्वेदिक क्रीम ऑर्डर भुगतान",
-          image: BRAND_INFO.logoUrl,
+          description: `माँ आयुर्वेदिक क्रीम ऑर्डर #${effectiveOrderNumber}`,
+          image: "/icon.jpeg",
           order_id: razorpayOrder.orderId,
-          handler: async function (response: any) {
-            // Verify signature
-            const verifyRes = await fetch("/api/razorpay/verify-payment", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                orderData: orderPayload,
-              }),
-            });
-
-            const verifyData = await verifyRes.json();
-            if (verifyRes.ok && verifyData.success) {
-              // Ensure order is saved in Supabase
-              await persistOrderToDatabase({
-                orderNumber,
-                userId: user?.id,
-                customerName: formData.fullName,
-                customerPhone: cleanPhone,
-                customerEmail: normalizedEmail,
-                shippingAddress: { ...formData, email: normalizedEmail },
-                items,
-                subtotalPaise,
-                discountPaise,
-                couponCode: appliedCoupon?.code,
-                shippingPaise,
-                totalPaise: finalTotalPaise,
-                paymentMethod: "razorpay_online",
-                paymentStatus: "paid",
-                fulfillmentStatus: "confirmed",
-                razorpayOrderId: response.razorpay_order_id,
-                razorpayPaymentId: response.razorpay_payment_id,
-              });
-
-              const existingOrders = JSON.parse(localStorage.getItem("maa_orders") || "[]");
-              existingOrders.unshift({
-                ...orderPayload,
-                id: orderNumber,
-                orderNumber,
-                paymentStatus: "paid",
-                fulfillmentStatus: "confirmed",
-                razorpayOrderId: response.razorpay_order_id,
-                razorpayPaymentId: response.razorpay_payment_id,
-                createdAt: new Date().toISOString(),
-              });
-              localStorage.setItem("maa_orders", JSON.stringify(existingOrders));
-
-              clearCart();
-              router.push(`/order-success/${orderNumber}?type=prepaid`);
-            } else {
-              setErrorMsg("भुगतान सत्यापन विफल रहा। कृपया सहायता टीम से संपर्क करें।");
-            }
-          },
           prefill: {
             name: formData.fullName,
             contact: cleanPhone,
-            email: formData.email || "",
+            email: normalizedEmail || undefined,
+          },
+          notes: {
+            order_number: effectiveOrderNumber,
+            address: `${formData.flatHouseNo}, ${formData.streetLocality}, ${formData.city}, ${formData.pincode}`,
           },
           theme: {
             color: "#0f4c3a",
           },
+          modal: {
+            confirm_close: true,
+            ondismiss: function () {
+              setLoading(false);
+              setErrorMsg("भुगतान विंडो बंद कर दी गई। आप दोबारा प्रयास कर सकते हैं या कैश ऑन डिलीवरी (COD) चुन सकते हैं।");
+            },
+          },
+          handler: async function (response: any) {
+            setLoading(true);
+            try {
+              // Verify HMAC signature on server
+              const verifyRes = await fetch("/api/razorpay/verify-payment", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                  orderNumber: effectiveOrderNumber,
+                  orderData: {
+                    ...orderPayload,
+                    orderNumber: effectiveOrderNumber,
+                  },
+                }),
+              });
+
+              const verifyData = await verifyRes.json();
+              if (verifyRes.ok && verifyData.success) {
+                const existingOrders = JSON.parse(localStorage.getItem("maa_orders") || "[]");
+                existingOrders.unshift({
+                  ...orderPayload,
+                  id: effectiveOrderNumber,
+                  orderNumber: effectiveOrderNumber,
+                  paymentStatus: "paid",
+                  fulfillmentStatus: "confirmed",
+                  razorpayOrderId: response.razorpay_order_id,
+                  razorpayPaymentId: response.razorpay_payment_id,
+                  createdAt: new Date().toISOString(),
+                });
+                localStorage.setItem("maa_orders", JSON.stringify(existingOrders));
+
+                clearCart();
+                router.push(`/order-success/${effectiveOrderNumber}?type=prepaid`);
+              } else {
+                setErrorMsg(verifyData.error || "भुगतान सत्यापन विफल रहा। कृपया सहायता टीम से संपर्क करें।");
+                setLoading(false);
+              }
+            } catch (vErr: any) {
+              console.error("Verification call error:", vErr);
+              setErrorMsg("भुगतान सत्यापन अनुरोध विफल रहा। यदि पैसे कट गए हैं, तो कृपया सहायता टीम से संपर्क करें।");
+              setLoading(false);
+            }
+          },
         };
 
         const rzp = new (window as any).Razorpay(options);
-        rzp.open();
-      } else {
-        // Sandbox / Test Flow Simulation
-        const mockPaymentId = `pay_mock_${Date.now()}`;
 
-        // Save order directly to Supabase database
+        rzp.on("payment.failed", function (failResponse: any) {
+          setLoading(false);
+          const reason =
+            failResponse.error?.description ||
+            failResponse.error?.reason ||
+            "बैंक अथवा कार्ड द्वारा भुगतान अस्वीकृत हुआ।";
+          setErrorMsg(`भुगतान असफल: ${reason} (पुनः प्रयास करें या कैश ऑन डिलीवरी चुनें)`);
+        });
+
+        rzp.open();
+      } else if (razorpayOrder.isMock) {
+        // Fallback for local sandbox mock development when no Razorpay keys are configured
+        const mockPaymentId = `pay_mock_${Date.now()}`;
         await persistOrderToDatabase({
-          orderNumber,
+          orderNumber: effectiveOrderNumber,
           userId: user?.id,
           customerName: formData.fullName,
           customerPhone: cleanPhone,
@@ -412,8 +436,8 @@ export default function CheckoutPage() {
         const existingOrders = JSON.parse(localStorage.getItem("maa_orders") || "[]");
         existingOrders.unshift({
           ...orderPayload,
-          id: orderNumber,
-          orderNumber,
+          id: effectiveOrderNumber,
+          orderNumber: effectiveOrderNumber,
           paymentStatus: "paid",
           fulfillmentStatus: "confirmed",
           razorpayOrderId: razorpayOrder.orderId,
@@ -423,7 +447,11 @@ export default function CheckoutPage() {
         localStorage.setItem("maa_orders", JSON.stringify(existingOrders));
 
         clearCart();
-        router.push(`/order-success/${orderNumber}?type=prepaid`);
+        router.push(`/order-success/${effectiveOrderNumber}?type=prepaid`);
+      } else {
+        throw new Error(
+          "रेज़रपे पेमेंट विंडो लोड नहीं हो सकी। कृपया अपना इंटरनेट कनेक्शन जांचें या पेज रीफ़्रेश करें।"
+        );
       }
     } catch (err: any) {
       console.error(err);
@@ -435,6 +463,7 @@ export default function CheckoutPage() {
 
   return (
     <div className="bg-[#fcfcfc] py-10">
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-8">
           <div>
