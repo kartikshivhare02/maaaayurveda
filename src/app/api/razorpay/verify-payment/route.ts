@@ -140,18 +140,30 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      message: "भुगतान सफलतापूर्वक सत्यापित हुआ! (Payment verified successfully)",
-      orderNumber: effectiveOrderNumber,
-      orderId: dbOrderId,
-      paymentId: razorpay_payment_id,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        message: "भुगतान सफलतापूर्वक सत्यापित हुआ! (Payment verified successfully)",
+        orderNumber: effectiveOrderNumber,
+        orderId: dbOrderId,
+        paymentId: razorpay_payment_id,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        },
+      }
+    );
   } catch (error: any) {
     console.error("Payment verification error:", error);
     return NextResponse.json(
       { error: error.message || "भुगतान सत्यापन प्रक्रिया में त्रुटि आई।" },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        },
+      }
     );
   }
 }

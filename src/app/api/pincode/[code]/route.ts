@@ -92,15 +92,22 @@ export async function GET(
 
   const locationString = city ? `${city}, ${state}` : state;
 
-  return NextResponse.json({
-    deliverable: true,
-    pincode: pin,
-    city: city || "",
-    state: state,
-    region: region,
-    estimatedDays: estimatedDays,
-    codAvailable: true,
-    freeDelivery: true,
-    message: `पिन कोड ${pin} (${locationString}) पर मुफ्त डिलीवरी व कैश ऑन डिलीवरी उपलब्ध है!`,
-  });
+  return NextResponse.json(
+    {
+      deliverable: true,
+      pincode: pin,
+      city: city || "",
+      state: state,
+      region: region,
+      estimatedDays: estimatedDays,
+      codAvailable: true,
+      freeDelivery: true,
+      message: `पिन कोड ${pin} (${locationString}) पर मुफ्त डिलीवरी व कैश ऑन डिलीवरी उपलब्ध है!`,
+    },
+    {
+      headers: {
+        "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800",
+      },
+    }
+  );
 }

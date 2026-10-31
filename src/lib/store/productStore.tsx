@@ -145,8 +145,11 @@ export const ProductProvider: React.FC<{
       }
     }
 
-    syncFromSupabase();
-  }, []);
+    // 2. Fresh sync from Supabase only if initialProduct was not provided by server
+    if (!initialProduct) {
+      syncFromSupabase();
+    }
+  }, [initialProduct]);
 
   // Listen for storage / custom events from admin
   useEffect(() => {

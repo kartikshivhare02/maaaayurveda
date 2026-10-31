@@ -203,11 +203,16 @@ export async function POST(request: Request) {
       // ignore stock decrement errors
     }
 
-    return NextResponse.json({
-      success: true,
-      order: orderRow,
-      orderNumber,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        order: orderRow,
+        orderNumber,
+      },
+      {
+        headers: { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" },
+      }
+    );
   } catch (err: any) {
     console.error("Error in /api/orders/create:", err);
     return NextResponse.json(

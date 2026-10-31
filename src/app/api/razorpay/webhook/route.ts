@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { verifyWebhookSignature } from "@/lib/razorpay";
 import { getSupabaseServerAdmin } from "@/lib/supabase/server";
 
+const NO_CACHE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+};
+
 export async function POST(request: Request) {
   try {
     const rawBody = await request.text();
@@ -11,7 +15,10 @@ export async function POST(request: Request) {
     const isValid = verifyWebhookSignature(rawBody, signature);
     if (!isValid) {
       console.warn("Razorpay webhook signature mismatch");
-      return NextResponse.json({ error: "Invalid webhook signature" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid webhook signature" },
+        { status: 400, headers: NO_CACHE_HEADERS }
+      );
     }
 
     const event = JSON.parse(rawBody);
@@ -20,7 +27,10 @@ export async function POST(request: Request) {
 
     const supabase = getSupabaseServerAdmin();
     if (!supabase) {
-      return NextResponse.json({ status: "ok", message: "Supabase not connected" });
+      return NextResponse.json(
+        { status: "ok", message: "Supabase not connected" },
+        { headers: NO_CACHE_HEADERS }
+      );
     }
 
     // 2. IDEMPOTENT EVENT HANDLING
@@ -72,9 +82,12 @@ export async function POST(request: Request) {
       await query;
     }
 
-    return NextResponse.json({ status: "ok", event: eventType });
+    return NextResponse.json({ status: "ok", event: eventType }, { headers: NO_CACHE_HEADERS });
   } catch (error: any) {
     console.error("Webhook processing error:", error);
-    return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Webhook handler failed" },
+      { status: 500, headers: NO_CACHE_HEADERS }
+    );
   }
 }

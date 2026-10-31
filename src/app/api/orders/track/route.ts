@@ -19,7 +19,7 @@ export async function GET(request: Request) {
 
     const { data, error } = await supabase
       .from("orders")
-      .select("*")
+      .select("id, order_number, customer_name, customer_phone, customer_email, shipping_address, items, subtotal_paise, discount_paise, shipping_paise, total_paise, payment_method, payment_status, fulfillment_status, courier_name, tracking_number, created_at, updated_at")
       .or(`order_number.ilike.${clean},customer_phone.ilike.%${clean}%`)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -31,7 +31,10 @@ export async function GET(request: Request) {
     }
 
     if (!data) {
-      return NextResponse.json({ order: null });
+      return NextResponse.json(
+        { order: null },
+        { headers: { "Cache-Control": "private, no-cache, no-store, must-revalidate" } }
+      );
     }
 
     const order = {
@@ -55,7 +58,10 @@ export async function GET(request: Request) {
       updatedAt: data.updated_at || data.created_at || new Date().toISOString(),
     };
 
-    return NextResponse.json({ order });
+    return NextResponse.json(
+      { order },
+      { headers: { "Cache-Control": "private, no-cache, no-store, must-revalidate" } }
+    );
   } catch (err: any) {
     console.error("Error in /api/orders/track:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });

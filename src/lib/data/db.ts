@@ -138,17 +138,20 @@ export function mapDbCoupon(row: any): Coupon {
   };
 }
 
+import { unstable_cache } from "next/cache";
+
 // ==========================================
-// CLIENT & SERVER DB DATA FETCHERS
+// CLIENT & SERVER DB DATA FETCHERS (CACHED)
 // ==========================================
 
-export async function fetchBundlesFromDb(): Promise<BundleOffer[]> {
+async function fetchBundlesInternal(): Promise<BundleOffer[]> {
   const client = getSupabaseServerAdmin() || (isSupabaseConfigured() ? supabase : null);
   if (client) {
     try {
       const { data, error } = await client
         .from("bundles")
-        .select("*")
+        .select("id, pack_count, title, subtitle, hindi_tag, mrp_paise, price_paise, savings_paise, savings_percentage, free_delivery, is_popular, is_best_value, active")
+        .eq("active", true)
         .order("pack_count", { ascending: true });
 
       if (!error && data && data.length > 0) {
@@ -161,7 +164,13 @@ export async function fetchBundlesFromDb(): Promise<BundleOffer[]> {
   return BUNDLE_OFFERS;
 }
 
-export async function fetchProductFromDb(slug = "maa-ayurvedic-cream"): Promise<Product> {
+export const fetchBundlesFromDb = unstable_cache(
+  fetchBundlesInternal,
+  ["db-bundles"],
+  { revalidate: 3600, tags: ["bundles"] }
+);
+
+async function fetchProductInternal(slug = "maa-ayurvedic-cream"): Promise<Product> {
   const client = getSupabaseServerAdmin() || (isSupabaseConfigured() ? supabase : null);
   if (client) {
     try {
@@ -181,13 +190,19 @@ export async function fetchProductFromDb(slug = "maa-ayurvedic-cream"): Promise<
   return MAIN_PRODUCT;
 }
 
-export async function fetchStoriesFromDb(): Promise<StoryTestimonial[]> {
+export const fetchProductFromDb = unstable_cache(
+  fetchProductInternal,
+  ["db-product"],
+  { revalidate: 3600, tags: ["product"] }
+);
+
+async function fetchStoriesInternal(): Promise<StoryTestimonial[]> {
   const client = getSupabaseServerAdmin() || (isSupabaseConfigured() ? supabase : null);
   if (client) {
     try {
       const { data, error } = await client
         .from("story_testimonials")
-        .select("*")
+        .select("id, customer_name, city, concern, duration, rating, before_image_url, after_image_url, video_url, story_hindi, is_verified, is_active, created_at")
         .eq("is_active", true)
         .order("created_at", { ascending: false });
 
@@ -201,12 +216,19 @@ export async function fetchStoriesFromDb(): Promise<StoryTestimonial[]> {
   return DEFAULT_STORY_TESTIMONIALS;
 }
 
-export async function fetchCouponsFromDb(): Promise<Coupon[]> {
-  if (isSupabaseConfigured() && supabase) {
+export const fetchStoriesFromDb = unstable_cache(
+  fetchStoriesInternal,
+  ["db-stories"],
+  { revalidate: 3600, tags: ["stories"] }
+);
+
+async function fetchCouponsInternal(): Promise<Coupon[]> {
+  const client = getSupabaseServerAdmin() || (isSupabaseConfigured() ? supabase : null);
+  if (client) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from("coupons")
-        .select("*")
+        .select("code, discount_type, discount_value, min_order_paise, max_discount_paise, expiry_date, is_active, description")
         .eq("is_active", true);
 
       if (!error && data && data.length > 0) {
@@ -218,6 +240,12 @@ export async function fetchCouponsFromDb(): Promise<Coupon[]> {
   }
   return COUPONS;
 }
+
+export const fetchCouponsFromDb = unstable_cache(
+  fetchCouponsInternal,
+  ["db-coupons"],
+  { revalidate: 3600, tags: ["coupons"] }
+);
 
 export async function fetchSiteSettingsFromDb(): Promise<SiteSettings> {
   const defaultSettings: SiteSettings = {

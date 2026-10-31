@@ -47,19 +47,21 @@ export const StoryTestimonials: React.FC<StoryTestimonialsProps> = ({ initialSto
       // ignore
     }
 
-    // 2. Fetch fresh stories directly from Supabase via public API
-    fetch("/api/stories")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json) => {
-        if (json?.stories && Array.isArray(json.stories) && json.stories.length > 0) {
-          const activeOnly = json.stories.filter((s: StoryTestimonial) => s.isActive !== false);
-          setStories(activeOnly);
-          try {
-            localStorage.setItem("maa_story_testimonials", JSON.stringify(json.stories));
-          } catch {}
-        }
-      })
-      .catch((err) => console.error("Failed to sync stories from Supabase:", err));
+    // 2. Fetch fresh stories directly from Supabase via public API only if not supplied by server
+    if (!initialStories || initialStories.length === 0) {
+      fetch("/api/stories")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((json) => {
+          if (json?.stories && Array.isArray(json.stories) && json.stories.length > 0) {
+            const activeOnly = json.stories.filter((s: StoryTestimonial) => s.isActive !== false);
+            setStories(activeOnly);
+            try {
+              localStorage.setItem("maa_story_testimonials", JSON.stringify(json.stories));
+            } catch {}
+          }
+        })
+        .catch((err) => console.error("Failed to sync stories from Supabase:", err));
+    }
 
     const handleStorageChange = () => {
       try {

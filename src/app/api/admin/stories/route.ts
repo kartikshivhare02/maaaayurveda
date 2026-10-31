@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerAdmin } from "@/lib/supabase/server";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +78,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    try {
+      revalidateTag("stories");
+      revalidatePath("/");
+      revalidatePath("/api/stories");
+    } catch {
+      // non-blocking
+    }
+
     return NextResponse.json({ success: true, story: data });
   } catch (err: any) {
     console.error("Error in /api/admin/stories POST:", err);
@@ -105,6 +114,14 @@ export async function DELETE(request: Request) {
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    try {
+      revalidateTag("stories");
+      revalidatePath("/");
+      revalidatePath("/api/stories");
+    } catch {
+      // non-blocking
     }
 
     return NextResponse.json({ success: true });

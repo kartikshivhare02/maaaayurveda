@@ -1,17 +1,23 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerAdmin } from "@/lib/supabase/server";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const supabase = getSupabaseServerAdmin();
     if (!supabase) {
       return NextResponse.json({ error: "Supabase admin not configured" }, { status: 500 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const limit = Math.min(Math.max(1, Number(searchParams.get("limit")) || 100), 250);
+
     const { data, error } = await supabase
       .from("orders")
-      .select("*")
-      .order("created_at", { ascending: false });
+      .select(
+        "id, order_number, customer_name, customer_phone, customer_email, shipping_address, items, subtotal_paise, discount_paise, shipping_paise, total_paise, payment_method, payment_status, fulfillment_status, courier_name, tracking_number, created_at, updated_at"
+      )
+      .order("created_at", { ascending: false })
+      .limit(limit);
 
     if (error) {
       console.error("Error fetching admin orders from Supabase:", error);
@@ -39,7 +45,10 @@ export async function GET() {
       updatedAt: d.updated_at || d.created_at || new Date().toISOString(),
     }));
 
-    return NextResponse.json({ orders });
+    return NextResponse.json(
+      { orders },
+      { headers: { "Cache-Control": "private, no-cache, no-store, must-revalidate" } }
+    );
   } catch (err: any) {
     console.error("Failed to load admin orders:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });

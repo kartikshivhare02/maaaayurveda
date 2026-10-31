@@ -117,59 +117,61 @@ export const CartProvider: React.FC<{
         setItems([]);
       }
 
-      // 3. Sync fresh bundle offers from Supabase and re-align cart items to authentic pricing
-      fetch("/api/admin/bundles")
-        .then((res) => (res.ok ? res.json() : null))
-        .then((json) => {
-          if (json?.bundles && Array.isArray(json.bundles) && json.bundles.length > 0) {
-            const mapped: BundleOffer[] = json.bundles
-              .filter((b: any) => b.active !== false)
-              .map((b: any) => ({
-                id: b.id,
-                packCount: b.pack_count,
-                title: b.title,
-                subtitle: b.subtitle || "",
-                hindiTag: b.hindi_tag || "",
-                mrpPaise: Number(b.mrp_paise),
-                pricePaise: Number(b.price_paise),
-                savingsPaise: Number(b.savings_paise),
-                savingsPercentage: Number(b.savings_percentage),
-                freeDelivery: b.free_delivery !== false,
-                isPopular: Boolean(b.is_popular),
-                isBestValue: Boolean(b.is_best_value),
-                active: b.active !== false,
-              }));
+      // 3. Sync fresh bundle offers from Supabase only if initialBundles wasn't supplied by server
+      if (!initialBundles || initialBundles.length === 0) {
+        fetch("/api/admin/bundles")
+          .then((res) => (res.ok ? res.json() : null))
+          .then((json) => {
+            if (json?.bundles && Array.isArray(json.bundles) && json.bundles.length > 0) {
+              const mapped: BundleOffer[] = json.bundles
+                .filter((b: any) => b.active !== false)
+                .map((b: any) => ({
+                  id: b.id,
+                  packCount: b.pack_count,
+                  title: b.title,
+                  subtitle: b.subtitle || "",
+                  hindiTag: b.hindi_tag || "",
+                  mrpPaise: Number(b.mrp_paise),
+                  pricePaise: Number(b.price_paise),
+                  savingsPaise: Number(b.savings_paise),
+                  savingsPercentage: Number(b.savings_percentage),
+                  freeDelivery: b.free_delivery !== false,
+                  isPopular: Boolean(b.is_popular),
+                  isBestValue: Boolean(b.is_best_value),
+                  active: b.active !== false,
+                }));
 
-            if (mapped.length > 0) {
-              setBundles(mapped);
-              setSelectedBundle((curr) => {
-                const stillExists = mapped.find((b) => b.id === curr.id);
-                return stillExists || mapped.find((b) => b.isPopular) || mapped[0];
-              });
-              try {
-                localStorage.setItem(BUNDLE_STORAGE_KEY, JSON.stringify(mapped));
-              } catch {}
+              if (mapped.length > 0) {
+                setBundles(mapped);
+                setSelectedBundle((curr) => {
+                  const stillExists = mapped.find((b) => b.id === curr.id);
+                  return stillExists || mapped.find((b) => b.isPopular) || mapped[0];
+                });
+                try {
+                  localStorage.setItem(BUNDLE_STORAGE_KEY, JSON.stringify(mapped));
+                } catch {}
 
-              // Re-validate and re-price any existing cart items against fresh DB bundles
-              setItems((prevItems) => {
-                const updated = sanitizeCartItems(prevItems, mapped);
-                if (updated.length === 0 && prevItems.length > 0) {
-                  try {
-                    localStorage.removeItem(CART_STORAGE_KEY);
-                  } catch {}
-                }
-                return updated;
-              });
+                // Re-validate and re-price any existing cart items against fresh DB bundles
+                setItems((prevItems) => {
+                  const updated = sanitizeCartItems(prevItems, mapped);
+                  if (updated.length === 0 && prevItems.length > 0) {
+                    try {
+                      localStorage.removeItem(CART_STORAGE_KEY);
+                    } catch {}
+                  }
+                  return updated;
+                });
+              }
             }
-          }
-        })
-        .catch((err) => console.error("Failed to sync bundles from Supabase:", err));
+          })
+          .catch((err) => console.error("Failed to sync bundles from Supabase:", err));
+      }
     } catch {
       // Fallback: keep cart completely empty
       setItems([]);
     }
     setIsLoaded(true);
-  }, []);
+  }, [initialBundles]);
 
   // Save to localStorage when items change
   useEffect(() => {

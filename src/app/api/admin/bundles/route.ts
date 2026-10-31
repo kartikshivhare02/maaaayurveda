@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerAdmin } from "@/lib/supabase/server";
+import { revalidatePath, revalidateTag } from "next/cache";
+
+export const revalidate = 3600;
 
 export async function GET() {
   const supabase = getSupabaseServerAdmin();
@@ -9,14 +12,22 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("bundles")
-    .select("*")
+    .select("id, pack_count, title, subtitle, hindi_tag, mrp_paise, price_paise, savings_paise, savings_percentage, free_delivery, is_popular, is_best_value, active")
+    .eq("active", true)
     .order("pack_count", { ascending: true });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, bundles: data });
+  return NextResponse.json(
+    { success: true, bundles: data },
+    {
+      headers: {
+        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+      },
+    }
+  );
 }
 
 export async function POST(request: Request) {
@@ -58,6 +69,15 @@ export async function POST(request: Request) {
       if (error) {
         console.error(`Error updating bundle ${b.id}:`, error);
       }
+    }
+
+    try {
+      revalidateTag("bundles");
+      revalidatePath("/");
+      revalidatePath("/product");
+      revalidatePath("/api/admin/bundles");
+    } catch {
+      // non-blocking
     }
 
     return NextResponse.json({ success: true });

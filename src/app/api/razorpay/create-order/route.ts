@@ -168,18 +168,23 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      orderId: razorpayOrder.id,
-      amount: razorpayOrder.amount,
-      currency: razorpayOrder.currency,
-      receipt: razorpayOrder.receipt,
-      keyId: getRazorpayKeyId(),
-      orderNumber,
-      customerName,
-      customerPhone,
-      isMock: razorpayOrder.isMock,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        orderId: razorpayOrder.id,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+        receipt: razorpayOrder.receipt,
+        keyId: getRazorpayKeyId(),
+        orderNumber,
+        customerName,
+        customerPhone,
+        isMock: razorpayOrder.isMock,
+      },
+      {
+        headers: { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" },
+      }
+    );
   } catch (error: any) {
     console.error("Error creating Razorpay order:", error);
     return NextResponse.json(

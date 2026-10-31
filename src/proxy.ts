@@ -12,7 +12,22 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
+  const pathname = request.nextUrl.pathname;
+
+  // 1. Completely bypass middleware for public static assets & public GET APIs
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/images/") ||
+    pathname.startsWith("/api/products") ||
+    pathname.startsWith("/api/stories") ||
+    pathname.startsWith("/api/pincode") ||
+    pathname === "/favicon.ico" ||
+    pathname === "/sitemap.xml" ||
+    pathname === "/robots.txt" ||
+    pathname === "/icon.jpeg"
+  ) {
+    return NextResponse.next();
+  }
 
   const supabaseUrl =
     process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -22,13 +37,21 @@ export async function proxy(request: NextRequest) {
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1id25temppcXBhbm92a3ZieGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4Mjc3MzYsImV4cCI6MjEwODQwMzczNn0.ooQetoXEbX2UkS_E60p6zrGflF0joeaV16cfUBAWboI";
 
   // Skip if Supabase is not configured
-  if (
-    !supabaseUrl ||
-    !supabaseAnonKey ||
-    supabaseUrl.includes("your-project-id")
-  ) {
-    return supabaseResponse;
+  if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes("your-project-id")) {
+    return NextResponse.next();
   }
+
+  const hasAuthCookie = request.cookies.getAll().some((c) => c.name.startsWith("sb-"));
+  const isAdminRoute = pathname.startsWith("/admin");
+  const isAccountRoute = pathname.startsWith("/account");
+
+  // 2. Fast early-exit: If guest browsing public pages without session cookie, return immediately
+  // This saves massive Vercel compute and eliminates unnecessary Supabase auth network calls on public hits.
+  if (!isAdminRoute && !isAccountRoute && !hasAuthCookie) {
+    return NextResponse.next();
+  }
+
+  let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -36,8 +59,6 @@ export async function proxy(request: NextRequest) {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet) {
-        // Set on both the cloned request and the outgoing response so that
-        // downstream Server Components see the refreshed token.
         cookiesToSet.forEach(({ name, value }) =>
           request.cookies.set(name, value)
         );
@@ -49,20 +70,13 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  // IMPORTANT: Do not write any logic between createServerClient and
-  // auth.getUser(). A simple mistake could make it very hard to debug
-  // issues with users being randomly logged out.
-  //
-  // auth.getUser() refreshes the session if it has expired. The updated
-  // session is written back to cookies via setAll above.
-  await supabase.auth.getUser();
+  // 3. Single session check for active users or admin routes
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  // Protect the admin panel — strictly allow ONLY verified admin accounts
-  if (request.nextUrl.pathname.startsWith("/admin")) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
+  // 4. Protect the admin panel — strictly allow ONLY verified admin accounts
+  if (isAdminRoute) {
     if (!user) {
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.pathname = "/account";
@@ -115,9 +129,9 @@ export const config = {
      * Match all request paths EXCEPT:
      *  - _next/static  (static files)
      *  - _next/image   (image optimisation)
-     *  - favicon.ico, sitemap.xml, robots.txt (public metadata)
+     *  - favicon.ico, sitemap.xml, robots.txt, icon.jpeg (public metadata)
      *  - /images/*  (public product images)
      */
-    "/((?!_next/static|_next/image|favicon\\.ico|sitemap\\.xml|robots\\.txt|images/).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico|sitemap\\.xml|robots\\.txt|images/|icon\\.jpeg).*)",
   ],
 };

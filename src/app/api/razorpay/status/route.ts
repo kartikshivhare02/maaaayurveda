@@ -45,15 +45,20 @@ export async function GET() {
     connectionMessage = "Razorpay keys not configured or using mock placeholders.";
   }
 
-  return NextResponse.json({
-    isConfigured,
-    mode: isLive ? "LIVE" : isTest ? "TEST" : "MOCK",
-    keyId: keyId ? `${keyId.substring(0, 8)}...${keyId.slice(-4)}` : "missing",
-    hasSecret: Boolean(secret && secret !== "your_razorpay_secret"),
-    hasWebhookSecret: Boolean(webhookSecret && webhookSecret !== "your_razorpay_webhook_secret"),
-    connectionStatus,
-    connectionMessage,
-    webhookEndpoint: "/api/razorpay/webhook",
-  });
+  return NextResponse.json(
+    {
+      isConfigured,
+      mode: isLive ? "LIVE" : isTest ? "TEST" : "MOCK",
+      keyId: keyId ? `${keyId.substring(0, 8)}...${keyId.slice(-4)}` : "missing",
+      hasSecret: Boolean(secret && secret !== "your_razorpay_secret"),
+      hasWebhookSecret: Boolean(webhookSecret && webhookSecret !== "your_razorpay_webhook_secret"),
+      connectionStatus,
+      connectionMessage,
+      webhookEndpoint: "/api/razorpay/webhook",
+    },
+    {
+      headers: { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" },
+    }
+  );
 }
 

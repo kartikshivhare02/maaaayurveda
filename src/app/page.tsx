@@ -27,7 +27,7 @@ import {
   Zap,
 } from "lucide-react";
 
-export const revalidate = 0; // Ensure fresh database fetch
+export const revalidate = 3600; // ISR: Cache on Vercel CDN for 1 hour with background revalidation
 
 export default async function HomePage() {
   const [product, stories, bundles] = await Promise.all([
